@@ -422,7 +422,6 @@ export default function AdminDashboard() {
               ))}
             </div>
           )}
-          {/* vistaAttiva !== "Turni Confermati"
           {/* VISTA TABELLE (Per le altre sezioni) */}
           {vistaAttiva !== "Dashboard" && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
@@ -638,5 +637,6 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
