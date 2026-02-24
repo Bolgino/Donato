@@ -155,9 +155,17 @@ export default function AdminDashboard() {
     : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
   const daSmistare = datiFiltratiAnno.filter(c => (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore") && c.shift_status === "Da Valutare");
-  const inGestione = datiFiltratiAnno.filter(c => c.shift_status === "Confermato" || c.shift_status === "Contattato" || c.shift_status === "Da Ricontattare");
+  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato");
+  const inGestione = datiFiltratiAnno.filter(c => c.shift_status === "Contattato" || c.shift_status === "Da Ricontattare");
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
-  const archivio = datiFiltratiAnno.filter(c => c.tipo_adesione === "No");
+  const archivio = datiFiltratiAnno; // Mostra tutto per l'anno selezionato
+  
+  let datiMostrati: any[] = [];
+  if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
+  if (vistaAttiva === "Turni Confermati") datiMostrati = turniConfermati;
+  if (vistaAttiva === "In Gestione") datiMostrati = inGestione;
+  if (vistaAttiva === "Pensarci") datiMostrati = pensarci;
+  if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
   const totSì = daSmistare.length + inGestione.length;
   const confermati = inGestione.filter(c => c.shift_status === "Confermato").length;
@@ -245,9 +253,10 @@ export default function AdminDashboard() {
           {[
             { nome: "Dashboard", icona: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
             { nome: "Da Smistare", badge: daSmistare.length, icona: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { nome: "Turni Confermati", badge: confermati.length, icona: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
             { nome: "In Gestione", badge: inGestione.length, icona: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
             { nome: "Pensarci", badge: pensarci.length, icona: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
-            { nome: "Archivio", badge: archivio.length, icona: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" }
+            { nome: "Archivio", badge: candidature.length, icona: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" }
           ].map((item) => (
             <button key={item.nome} onClick={() => setVistaAttivo(item.nome)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${vistaAttiva === item.nome ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'hover:bg-slate-800 hover:text-white'}`}>
               <div className="flex items-center space-x-3">
@@ -565,14 +574,54 @@ export default function AdminDashboard() {
                                     Gestisci Turno
                                   </button>
                                 )}
-                                
+                                {vistaAttiva === "Turni Confermati" && (
+                                    <div className="space-y-8">
+                                      {Object.entries(
+                                        datiMostrati.reduce((acc: any, c) => {
+                                          const data = c.data_disponibilita || "Data non impostata";
+                                          if (!acc[data]) acc[data] = [];
+                                          acc[data].push(c);
+                                          return acc;
+                                        }, {})
+                                      ).sort().map(([data, persone]: [any, any]) => (
+                                        <div key={data} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                                            <h3 className="font-bold text-slate-800">
+                                              {data !== "Data non impostata" ? new Date(data).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : data}
+                                            </h3>
+                                            <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+                                              {persone.length} PRONTI
+                                            </span>
+                                          </div>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6">
+                                            {persone.map((p: any) => (
+                                              <div key={p.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/50">
+                                                <p className="font-bold text-slate-900">{p.nome} {p.cognome}</p>
+                                                <p className="text-xs text-slate-500">{p.istituto}</p>
+                                                <p className="text-[10px] font-mono mt-2 text-blue-600">{p.cellulare}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 {/* Pulsante Mail per Pensarci */}
                                 {vistaAttiva === "Pensarci" && (
-                                  <a href={`mailto:${c.email}?subject=Progetto Scuole Donazione Sangue - Come va?&body=Ciao ${c.nome},%0A%0AÈ passato circa un mese da quando hai compilato il nostro modulo...`} 
-                                     className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm shadow-blue-200 hover:bg-blue-700 flex items-center transition">
-                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                    Follow-up Mail
-                                  </a>
+                                  <td className="p-4 align-top">
+                                    {(() => {
+                                      const dataRisposta = new Date(c.created_at);
+                                      const oggi = new Date();
+                                      const diffMesi = (oggi.getFullYear() - dataRisposta.getFullYear()) * 12 + (oggi.getMonth() - dataRisposta.getMonth());
+                                      return diffMesi >= 1 ? (
+                                        <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded animate-pulse">
+                                          ⚠️ RICONTATTARE (1 MESE+)
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 text-[10px]">Attesa riflessione...</span>
+                                      );
+                                    })()}
+                                  </td>
                                 )}
                                 
                                 {/* Lettura Note per No e Pensarci */}
@@ -602,3 +651,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
