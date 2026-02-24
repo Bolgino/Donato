@@ -155,9 +155,17 @@ export default function AdminDashboard() {
     : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
   const daSmistare = datiFiltratiAnno.filter(c => (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore") && c.shift_status === "Da Valutare");
-  const inGestione = datiFiltratiAnno.filter(c => c.shift_status === "Confermato" || c.shift_status === "Contattato" || c.shift_status === "Da Ricontattare");
+  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato");
+  const inGestione = datiFiltratiAnno.filter(c => c.shift_status === "Contattato" || c.shift_status === "Da Ricontattare");
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
-  const archivio = datiFiltratiAnno.filter(c => c.tipo_adesione === "No");
+  const archivio = datiFiltratiAnno; // Mostra tutto per l'anno selezionato
+  
+  let datiMostrati: any[] = [];
+  if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
+  if (vistaAttiva === "Turni Confermati") datiMostrati = turniConfermati;
+  if (vistaAttiva === "In Gestione") datiMostrati = inGestione;
+  if (vistaAttiva === "Pensarci") datiMostrati = pensarci;
+  if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
   const totSì = daSmistare.length + inGestione.length;
   const confermati = inGestione.filter(c => c.shift_status === "Confermato").length;
@@ -172,11 +180,6 @@ export default function AdminDashboard() {
   
   const scuoleOrdinate: [string, number][] = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
 
-  let datiMostrati: any[] = [];
-  if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
-  if (vistaAttiva === "In Gestione") datiMostrati = inGestione;
-  if (vistaAttiva === "Pensarci") datiMostrati = pensarci;
-  if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
   // --- SCHERMATA LOGIN SICURA ---
   if (!session) {
@@ -242,12 +245,13 @@ export default function AdminDashboard() {
         <nav className="flex-1 p-4 space-y-2">
           <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">Menu Principale</p>
           
-          {[
+         {[
             { nome: "Dashboard", icona: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
             { nome: "Da Smistare", badge: daSmistare.length, icona: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { nome: "Turni Confermati", badge: confermati.length, icona: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
             { nome: "In Gestione", badge: inGestione.length, icona: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
             { nome: "Pensarci", badge: pensarci.length, icona: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
-            { nome: "Archivio", badge: archivio.length, icona: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" }
+            { nome: "Archivio", badge: candidature.length, icona: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" }
           ].map((item) => (
             <button key={item.nome} onClick={() => setVistaAttivo(item.nome)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${vistaAttiva === item.nome ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'hover:bg-slate-800 hover:text-white'}`}>
               <div className="flex items-center space-x-3">
@@ -602,3 +606,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
