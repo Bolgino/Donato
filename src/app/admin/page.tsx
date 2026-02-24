@@ -135,18 +135,34 @@ export default function AdminDashboard() {
   };
 
   const getSlotDisponibili = () => {
+    // 1. Calcola quante persone sono già in ogni data (sia Contattati che Confermati)
+    const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
+      if ((c.shift_status === 'Contattato' || c.shift_status === 'Confermato') && c.data_disponibilita) {
+        acc[c.data_disponibilita] = (acc[c.data_disponibilita] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
     const slots = [];
     let dataTest = new Date();
     dataTest.setDate(dataTest.getDate() + 5); 
 
+    // 2. Trova i prossimi 6 slot disponibili (Martedì/Giovedì) con MENO di 4 persone
     while (slots.length < 6) {
       if (dataTest.getDay() === 2 || dataTest.getDay() === 4) {
-        slots.push(new Date(dataTest).toISOString().split('T')[0]);
+        const dateString = dataTest.toISOString().split('T')[0];
+        const occupati = occupatiPerData[dateString] || 0;
+        
+        // Aggiunge la data solo se ci sono meno di 4 persone assegnate
+        if (occupati < 4) {
+          slots.push({ date: dateString, occupati });
+        }
       }
       dataTest.setDate(dataTest.getDate() + 1);
     }
     return slots;
   };
+
   const anniSet = new Set(candidature.map(c => calcolaAnnoScolastico(c.created_at)));
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
 
@@ -155,10 +171,19 @@ export default function AdminDashboard() {
     : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
   const daSmistare = datiFiltratiAnno.filter(c => (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore") && c.shift_status === "Da Valutare");
-  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato");
-  const inGestione = datiFiltratiAnno.filter(c => c.shift_status === "Contattato" || c.shift_status === "Da Ricontattare");
+  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(a.data_disponibilita).getTime() - new Date(b.data_disponibilita).getTime());
+  
+  // ORDINAMENTO: I "Contattati" stanno in cima, i "Da Ricontattare" scivolano in fondo
+  const inGestione = datiFiltratiAnno
+    .filter(c => c.shift_status === "Contattato" || c.shift_status === "Da Ricontattare")
+    .sort((a, b) => {
+      if (a.shift_status === "Contattato" && b.shift_status !== "Contattato") return -1;
+      if (a.shift_status !== "Contattato" && b.shift_status === "Contattato") return 1;
+      return 0;
+    });
+
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
-  const archivio = datiFiltratiAnno; // Mostra tutto per l'anno selezionato
+  const archivio = datiFiltratiAnno;
   
   let datiMostrati: any[] = [];
   if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
@@ -460,7 +485,7 @@ export default function AdminDashboard() {
                         }
 
                         return (
-                          <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <tr key={c.id} className={`transition-colors group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'}`}>
                             
                             {/* Colonna Profilo */}
                             <td className="p-4 pl-6 align-top">
@@ -516,34 +541,66 @@ export default function AdminDashboard() {
                             {vistaAttiva !== "Archivio" && (
                               <td className="p-4 align-top relative">
                                 {editingId === c.id ? (
-                                  <div className="space-y-3 w-[280px] bg-white p-4 rounded-xl shadow-2xl border-2 border-red-500 absolute z-50 left-0 top-0">
+                                  <div className="space-y-4 w-[280px] bg-white p-4 rounded-xl shadow-2xl border-2 border-red-500 absolute z-50 left-0 top-0">
                                     {checkIdoneita(c).abile ? (
                                       <>
+                                        {/* 1. SELEZIONE STATO (Confermato incluso) */}
                                         <div>
-                                          <label className="text-[10px] font-bold text-slate-400 uppercase">1. Scegli Slot Martedì/Giovedì</label>
-                                          <select 
-                                            value={editData} 
-                                            onChange={(e) => {setEditData(e.target.value); setEditStatus("Confermato");}}
-                                            className="w-full border-b border-slate-200 py-1 text-sm outline-none font-bold"
-                                          >
-                                            <option value="">Seleziona una data...</option>
-                                            {getSlotDisponibili().map(date => (
-                                              <option key={date} value={date}>
-                                                {new Date(date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
-                                              </option>
-                                            ))}
+                                          <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Stato Assegnazione</label>
+                                          <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold outline-none focus:border-red-500">
+                                            <option value="Da Valutare">⏳ Da Valutare</option>
+                                            <option value="Contattato">📞 Contattato</option>
+                                            <option value="Confermato">✅ Confermato</option>
+                                            <option value="Da Ricontattare">🔄 Da Ricontattare</option>
                                           </select>
                                         </div>
-                                        <div>
-                                          <label className="text-[10px] font-bold text-slate-400 uppercase">2. Oppure cambia stato</label>
-                                          <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border-b border-slate-200 py-1 text-sm outline-none">
-                                            <option value="Da Valutare">Da Valutare</option>
-                                            <option value="Contattato">Contattato</option>
-                                            <option value="Da Ricontattare">Da Ricontattare</option>
-                                          </select>
-                                        </div>
+                                
+                                        {/* 2. SELEZIONE DATA (Mostrata solo per Contattati o Confermati) */}
+                                        {(editStatus === "Contattato" || editStatus === "Confermato" || editStatus === "Da Valutare") && (
+                                          <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Data Turno (Max 4 posti)</label>
+                                            <select 
+                                              value={editData} 
+                                              onChange={(e) => setEditData(e.target.value)}
+                                              className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm outline-none focus:border-red-500 font-medium"
+                                            >
+                                              <option value="">-- Seleziona la data --</option>
+                                              {getSlotDisponibili().map(slot => (
+                                                <option key={slot.date} value={slot.date}>
+                                                  {new Date(slot.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()} ({slot.occupati}/4 occupati)
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        )}
+                                
+                                        {/* 3. OPZIONI DA RICONTATTARE */}
+                                        {editStatus === "Da Ricontattare" && (
+                                          <div className="space-y-2">
+                                            <div>
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Riprovare dal giorno:</label>
+                                              <input type="date" value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1 text-sm outline-none" />
+                                            </div>
+                                            <div>
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Motivazione</label>
+                                              <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Es: Ha l'influenza, richiamare mese prox..." className="w-full border border-slate-200 rounded-md px-2 py-1 text-sm h-14 resize-none outline-none"></textarea>
+                                            </div>
+                                          </div>
+                                        )}
                                       </>
                                     ) : (
+                                      <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                                        <p className="text-red-700 text-xs font-bold uppercase text-center">🚫 Azione Bloccata</p>
+                                        <p className="text-[10px] text-red-500 text-center mt-1">Impossibile inserire {checkIdoneita(c).motivo} nei turni.</p>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex space-x-2 pt-2">
+                                      <button onClick={() => salvaModifiche(c.id)} disabled={!checkIdoneita(c).abile} className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-black shadow-lg disabled:opacity-30 hover:bg-red-700">SALVA</button>
+                                      <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-500 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">ANNULLA</button>
+                                    </div>
+                                  </div>
+                                ) : ( 
                                       <div className="bg-red-50 p-3 rounded-lg border border-red-200">
                                         <p className="text-red-700 text-xs font-bold uppercase text-center">🚫 Azione Bloccata</p>
                                         <p className="text-[10px] text-red-500 text-center mt-1">Impossibile inserire {checkIdoneita(c).motivo} nei turni.</p>
@@ -636,6 +693,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
 
