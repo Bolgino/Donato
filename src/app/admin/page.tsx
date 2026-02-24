@@ -180,12 +180,6 @@ export default function AdminDashboard() {
   
   const scuoleOrdinate: [string, number][] = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
 
-  let datiMostrati: any[] = [];
-  if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
-  if (vistaAttiva === "In Gestione") datiMostrati = inGestione;
-  if (vistaAttiva === "Pensarci") datiMostrati = pensarci;
-  if (vistaAttiva === "Archivio") datiMostrati = archivio;
-
   // --- SCHERMATA LOGIN SICURA ---
   if (!session) {
     return (
@@ -560,10 +554,11 @@ export default function AdminDashboard() {
                             )}
 
                             {/* Colonna Azioni */}
+                            {/* Colonna Azioni */}
                             <td className="p-4 pr-6 text-right align-top">
                               <div className="flex justify-end space-x-2 flex-wrap gap-y-2">
                                 
-                                {/* Pulsante Modifica */}
+                                {/* Pulsante Modifica (Escluso per Archivio e Pensarci) */}
                                 {vistaAttiva !== "Archivio" && vistaAttiva !== "Pensarci" && editingId !== c.id && (
                                   <button onClick={() => {
                                     setEditingId(c.id);
@@ -574,54 +569,41 @@ export default function AdminDashboard() {
                                     Gestisci Turno
                                   </button>
                                 )}
-                                {vistaAttiva === "Turni Confermati" && (
-                                    <div className="space-y-8">
-                                      {Object.entries(
-                                        datiMostrati.reduce((acc: any, c) => {
-                                          const data = c.data_disponibilita || "Data non impostata";
-                                          if (!acc[data]) acc[data] = [];
-                                          acc[data].push(c);
-                                          return acc;
-                                        }, {})
-                                      ).sort().map(([data, persone]: [any, any]) => (
-                                        <div key={data} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-                                            <h3 className="font-bold text-slate-800">
-                                              {data !== "Data non impostata" ? new Date(data).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : data}
-                                            </h3>
-                                            <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
-                                              {persone.length} PRONTI
-                                            </span>
-                                          </div>
-                                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6">
-                                            {persone.map((p: any) => (
-                                              <div key={p.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/50">
-                                                <p className="font-bold text-slate-900">{p.nome} {p.cognome}</p>
-                                                <p className="text-xs text-slate-500">{p.istituto}</p>
-                                                <p className="text-[10px] font-mono mt-2 text-blue-600">{p.cellulare}</p>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                {/* Pulsante Mail per Pensarci */}
+
+                                {/* Avviso per "Pensarci" (Senza usare <td> aggiuntivi) */}
                                 {vistaAttiva === "Pensarci" && (
-                                  <td className="p-4 align-top">
+                                  <div className="flex items-center">
                                     {(() => {
                                       const dataRisposta = new Date(c.created_at);
                                       const oggi = new Date();
                                       const diffMesi = (oggi.getFullYear() - dataRisposta.getFullYear()) * 12 + (oggi.getMonth() - dataRisposta.getMonth());
                                       return diffMesi >= 1 ? (
-                                        <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded animate-pulse">
-                                          ⚠️ RICONTATTARE (1 MESE+)
+                                        <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1.5 rounded animate-pulse shadow-sm">
+                                          ⚠️ 1 MESE+ (Da ricontattare)
                                         </span>
                                       ) : (
-                                        <span className="text-slate-400 text-[10px]">Attesa riflessione...</span>
+                                        <span className="text-slate-400 text-[10px] font-medium border border-slate-200 px-2 py-1.5 rounded">
+                                          ⏳ In riflessione...
+                                        </span>
                                       );
                                     })()}
-                                  </td>
+                                  </div>
+                                )}
+                                
+                                {/* Lettura Note per Archivio e Pensarci */}
+                                {(vistaAttiva === "Pensarci" || vistaAttiva === "Archivio") && c.motivo_scelta && (
+                                  <div className="relative group/tooltip inline-block">
+                                    <button className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 hover:bg-slate-200 cursor-help">
+                                      Leggi Motivo
+                                    </button>
+                                    <div className="absolute hidden group-hover/tooltip:block z-50 right-0 mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl text-left whitespace-normal leading-relaxed before:content-[''] before:absolute before:top-[-6px] before:right-6 before:border-b-8 before:border-b-slate-800 before:border-x-8 before:border-x-transparent">
+                                      {c.motivo_scelta}
+                                    </div>
+                                  </div>
+                                )}
+
+                              </div>
+                            </td>
                                 )}
                                 
                                 {/* Lettura Note per No e Pensarci */}
