@@ -600,18 +600,6 @@ export default function AdminDashboard() {
                                       <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-500 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">ANNULLA</button>
                                     </div>
                                   </div>
-                                ) : ( 
-                                      <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                        <p className="text-red-700 text-xs font-bold uppercase text-center">🚫 Azione Bloccata</p>
-                                        <p className="text-[10px] text-red-500 text-center mt-1">Impossibile inserire {checkIdoneita(c).motivo} nei turni.</p>
-                                      </div>
-                                    )}
-                                    
-                                    <div className="flex space-x-2 pt-2">
-                                      <button onClick={() => salvaModifiche(c.id)} disabled={!checkIdoneita(c).abile && editStatus === "Confermato"} className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-black shadow-lg disabled:opacity-30">CONFERMA</button>
-                                      <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-400 py-2 rounded-lg text-xs font-bold">CHIUDI</button>
-                                    </div>
-                                  </div>
                                 ) : (
                                   <div>
                                     <span className={`px-2.5 py-1 rounded-md font-bold text-xs border ${
@@ -693,6 +681,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
 
