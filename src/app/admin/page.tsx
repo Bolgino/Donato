@@ -117,7 +117,36 @@ export default function AdminDashboard() {
     const year = d.getFullYear();
     return d.getMonth() < 8 ? `${year - 1}-${year}` : `${year}-${year + 1}`;
   };
+  const checkIdoneita = (c: any) => {
+    const eta = c.data_nascita ? Math.floor((new Date().getTime() - new Date(c.data_nascita).getTime()) / 31557600000) : 0;
+    const isMinorenne = eta < 18;
+    
+    let isSospeso = false;
+    if (c.data_ultima_donazione) {
+      const dataSblocco = new Date(new Date(c.data_ultima_donazione).getTime() + 90 * 24 * 60 * 60 * 1000);
+      if (dataSblocco > new Date()) isSospeso = true;
+    }
+    
+    return { 
+      abile: !isMinorenne && !isSospeso, 
+      motivo: isMinorenne ? "MINORENNE" : (isSospeso ? "SOSPESO" : ""),
+      color: isMinorenne || isSospeso ? "text-red-600" : "text-slate-800"
+    };
+  };
 
+  const getSlotDisponibili = () => {
+    const slots = [];
+    let dataTest = new Date();
+    dataTest.setDate(dataTest.getDate() + 5); 
+
+    while (slots.length < 6) {
+      if (dataTest.getDay() === 2 || dataTest.getDay() === 4) {
+        slots.push(new Date(dataTest).toISOString().split('T')[0]);
+      }
+      dataTest.setDate(dataTest.getDate() + 1);
+    }
+    return slots;
+  };
   const anniSet = new Set(candidature.map(c => calcolaAnnoScolastico(c.created_at)));
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
 
@@ -276,7 +305,7 @@ export default function AdminDashboard() {
             <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
               
               {/* Cards Statistiche */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl">👥</div>
                   <div><p className="text-sm text-slate-500 font-semibold">Totale Iscritti</p><p className="text-3xl font-black text-slate-800">{datiFiltratiAnno.length}</p></div>
@@ -288,10 +317,6 @@ export default function AdminDashboard() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
                   <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl">🤔</div>
                   <div><p className="text-sm text-slate-500 font-semibold">Ci Pensano</p><p className="text-3xl font-black text-slate-800">{pensarci.length}</p></div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xl">📁</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Archiviati (No)</p><p className="text-3xl font-black text-slate-800">{archivio.length}</p></div>
                 </div>
               </div>
 
@@ -406,10 +431,12 @@ export default function AdminDashboard() {
                             {/* Colonna Profilo */}
                             <td className="p-4 pl-6 align-top">
                               <div className="text-xs text-slate-400 font-medium mb-1">{new Date(c.created_at).toLocaleDateString('it-IT')}</div>
-                              <div className="font-extrabold text-slate-800 text-base flex items-center">
+                              <div className={`font-extrabold text-base flex items-center ${checkIdoneita(c).color}`}>
                                 {c.nome} {c.cognome}
-                                {eta !== null && eta < 18 && (
-                                  <span className="ml-2 bg-red-100 text-red-700 text-[9px] px-1.5 py-0.5 rounded font-black tracking-widest border border-red-200">UNDER 18</span>
+                                {!checkIdoneita(c).abile && (
+                                  <span className="ml-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                                    {checkIdoneita(c).motivo}
+                                  </span>
                                 )}
                               </div>
                               <div className={`text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded mt-1 ${
@@ -455,25 +482,43 @@ export default function AdminDashboard() {
                             {vistaAttiva !== "Archivio" && (
                               <td className="p-4 align-top relative">
                                 {editingId === c.id ? (
-                                  <div className="space-y-2 w-[250px] bg-white p-3 rounded-xl shadow-2xl border border-red-200 absolute z-50 left-0 top-2">
-                                    <label className="text-xs font-bold text-slate-500">Imposta Stato:</label>
-                                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border-b-2 border-slate-200 focus:border-red-500 text-sm pb-1 outline-none font-medium text-slate-700 cursor-pointer">
-                                      <option value="Da Valutare">Da Valutare</option>
-                                      <option value="Contattato">Contattato</option>
-                                      <option value="Confermato">Confermato</option>
-                                      <option value="Da Ricontattare">Da Ricontattare</option>
-                                    </select>
-                                    
-                                    {editStatus === "Da Ricontattare" && (
-                                      <div className="space-y-2 pt-2 bg-yellow-50 p-2 rounded border border-yellow-100 mt-2">
-                                        <label className="text-[10px] font-bold text-yellow-800 uppercase">Data Rientro:</label>
-                                        <input type="date" value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border-b border-yellow-200 text-xs pb-1 outline-none bg-transparent" />
-                                        <input type="text" placeholder="Motivo (es. malato, stage)" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="w-full border-b border-yellow-200 text-xs pb-1 outline-none bg-transparent mt-2" />
+                                  <div className="space-y-3 w-[280px] bg-white p-4 rounded-xl shadow-2xl border-2 border-red-500 absolute z-50 left-0 top-0">
+                                    {checkIdoneita(c).abile ? (
+                                      <>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-slate-400 uppercase">1. Scegli Slot Martedì/Giovedì</label>
+                                          <select 
+                                            value={editData} 
+                                            onChange={(e) => {setEditData(e.target.value); setEditStatus("Confermato");}}
+                                            className="w-full border-b border-slate-200 py-1 text-sm outline-none font-bold"
+                                          >
+                                            <option value="">Seleziona una data...</option>
+                                            {getSlotDisponibili().map(date => (
+                                              <option key={date} value={date}>
+                                                {new Date(date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] font-bold text-slate-400 uppercase">2. Oppure cambia stato</label>
+                                          <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border-b border-slate-200 py-1 text-sm outline-none">
+                                            <option value="Da Valutare">Da Valutare</option>
+                                            <option value="Contattato">Contattato</option>
+                                            <option value="Da Ricontattare">Da Ricontattare</option>
+                                          </select>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                                        <p className="text-red-700 text-xs font-bold uppercase text-center">🚫 Azione Bloccata</p>
+                                        <p className="text-[10px] text-red-500 text-center mt-1">Impossibile inserire {checkIdoneita(c).motivo} nei turni.</p>
                                       </div>
                                     )}
-                                    <div className="flex space-x-2 pt-3">
-                                      <button onClick={() => salvaModifiche(c.id)} className="flex-1 bg-red-600 text-white py-1.5 rounded-lg text-xs font-bold hover:bg-red-700 transition">Salva</button>
-                                      <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-600 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-200 transition">Annulla</button>
+                                    
+                                    <div className="flex space-x-2 pt-2">
+                                      <button onClick={() => salvaModifiche(c.id)} disabled={!checkIdoneita(c).abile && editStatus === "Confermato"} className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-black shadow-lg disabled:opacity-30">CONFERMA</button>
+                                      <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-400 py-2 rounded-lg text-xs font-bold">CHIUDI</button>
                                     </div>
                                   </div>
                                 ) : (
