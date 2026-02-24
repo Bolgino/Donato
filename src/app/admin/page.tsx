@@ -390,7 +390,39 @@ export default function AdminDashboard() {
 
             </div>
           )}
-
+          {vistaAttiva === "Turni Confermati" && (
+            <div className="space-y-8 animate-in fade-in">
+              {Object.entries(
+                datiMostrati.reduce((acc: any, c) => {
+                  const data = c.data_disponibilita || "Data non impostata";
+                  if (!acc[data]) acc[data] = [];
+                  acc[data].push(c);
+                  return acc;
+                }, {})
+              ).sort().map(([data, persone]: [any, any]) => (
+                <div key={data} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800">
+                      {data !== "Data non impostata" ? new Date(data).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) : data}
+                    </h3>
+                    <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+                      {persone.length} PRONTI
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6">
+                    {persone.map((p: any) => (
+                      <div key={p.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/50">
+                        <p className="font-bold text-slate-900">{p.nome} {p.cognome}</p>
+                        <p className="text-xs text-slate-500">{p.istituto}</p>
+                        <p className="text-[10px] font-mono mt-2 text-blue-600">{p.cellulare}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* vistaAttiva !== "Turni Confermati"
           {/* VISTA TABELLE (Per le altre sezioni) */}
           {vistaAttiva !== "Dashboard" && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
@@ -606,4 +638,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
