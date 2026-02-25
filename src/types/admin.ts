@@ -16,3 +16,12 @@ export interface Candidato {
   motivo_scelta: string | null;
   data_ultima_donazione: string | null;
 }
+
+export interface Professore {
+  id: string;
+  scuola: string;
+  nome: string;
+  cognome: string;
+  mail: string;
+  cell: string;
+}
