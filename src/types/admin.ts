@@ -3,7 +3,7 @@ export interface Candidato {
   created_at: string;
   nome: string;
   cognome: string;
-  sesso?: string | null; // Aggiunto Sesso
+  sesso?: string | null;
   data_nascita: string | null;
   ha_fatto_ecg: boolean | null;
   istituto: string;
@@ -19,6 +19,8 @@ export interface Candidato {
   data_ricontatto?: string | null; 
   scadenza_risposta?: string | null; 
   note?: string | null;
+  consenso_privacy?: boolean | null;
+  consenso_multimediale?: boolean | null;
 }
 
 export interface Professore {
