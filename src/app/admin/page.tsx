@@ -760,12 +760,12 @@ export default function AdminDashboard() {
                                     <div>
                                       <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : (c.shift_status === 'Contattato' || c.shift_status === 'In Attesa') ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status || 'Da Valutare'}</span>
                                       
-                                      {/* Mostra avvisi Già Donatori (<3 mesi o >2 anni) */}
+                                      {/* Mostra avvisi Già Donatori (<3 mesi o &gt;2 anni) */}
                                       {vistaAttiva === 'Già Donatori' && c.data_ultima_donazione && (
                                         <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2">
                                            <span className="text-[10px] font-bold text-slate-500">Ultima Donazione: {new Date(c.data_ultima_donazione).toLocaleDateString('it-IT')}</span>
                                            {dStatus.isRecent && <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded border border-red-200 inline-block w-fit">⚠️ Attesa 3 mesi</span>}
-                                           {dStatus.isOld && <span className="bg-orange-100 text-orange-700 text-[9px] px-2 py-0.5 rounded border border-orange-200 inline-block w-fit">🔄 Scaduto (>2 anni)</span>}
+                                           {dStatus.isOld && <span className="bg-orange-100 text-orange-700 text-[9px] px-2 py-0.5 rounded border border-orange-200 inline-block w-fit">🔄 Scaduto (&gt;2 anni)</span>}
                                         </div>
                                       )}
 
@@ -1007,3 +1007,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
