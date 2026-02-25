@@ -13,7 +13,6 @@ export default function AdminDashboard() {
   const [candidature, setCandidature] = useState<Candidato[]>([]);
   const [professori, setProfessori] = useState<Professore[]>([]);
   
-  // Loading con animazione originale (Logo rimbalzante)
   const [loading, setLoading] = useState(true);
   const [fraseLoading, setFraseLoading] = useState("Verificando gli accessi...");
   const frasiDivertenti = ["Organizzando i turni...", "Svegliando i vampiri...", "Smistando le candidature...", "Calcolando le statistiche...", "Preparando i lettini...", "Controllando l'emoglobina..."];
@@ -23,15 +22,19 @@ export default function AdminDashboard() {
   const [vistaAttiva, setVistaAttivo] = useState("Dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Stati modali edit base
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<any>("");
   const [editNote, setEditNote] = useState("");
   const [editData, setEditData] = useState("");
-  const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
-
-  const [editingProf, setEditingProf] = useState<Partial<Professore> | null>(null);
+  const [editDataRicontatto, setEditDataRicontatto] = useState("");
   
-  // Gestione selezioni per l'export dei contatti
+  // Modale per "Ci voglio pensare"
+  const [editScadenzaPensarci, setEditScadenzaPensarci] = useState("");
+  const [modalitaPensarci, setModalitaPensarci] = useState<"INVIO_MAIL" | "ESITO">("ESITO");
+
+  const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
+  const [editingProf, setEditingProf] = useState<Partial<Professore> | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -46,7 +49,6 @@ export default function AdminDashboard() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Effetto per le frasi divertenti del caricamento
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (loading && session) {
@@ -84,16 +86,14 @@ export default function AdminDashboard() {
       setCandidature(candRes.data || []);
       if (candRes.data && candRes.data.length > 0 && annoAttivo === "Tutti") {
           const anni = Array.from(new Set(candRes.data.map(c => calcolaAnnoScolastico(c.created_at)))).sort().reverse();
-          if(anni.length > 0) setAnnoAttivo(anni[0]);
+          if(anni.length > 0) setAnnoAttivo("Tutti");
       }
     } else toast.error("Errore candidature");
 
     if (!profRes.error) setProfessori(profRes.data || []);
-
     setTimeout(() => setLoading(false), 1500); 
   };
 
-  // --- LOGICA E CALCOLI ---
   const calcolaAnnoScolastico = (dataString: string) => {
     if (!dataString) return "Sconosciuto";
     const d = new Date(dataString); const year = d.getFullYear();
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
-  // FILTRI AGGIORNATI
+  // FILTRI VISTE
   const inGestione = datiFiltratiAnno.filter(c => 
     (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "SI" || c.tipo_adesione === "SÌ") && 
     (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
@@ -123,13 +123,14 @@ export default function AdminDashboard() {
 
   const giaDonatori = datiFiltratiAnno.filter(c => 
     c.tipo_adesione === "Già Donatore" && 
-    (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
+    (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare" || !c.shift_status)
   ).sort((a, b) => a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare" ? -1 : 1);
 
-  const pending = datiFiltratiAnno.filter(c => c.shift_status === "Contattato").sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
+  const pending = datiFiltratiAnno.filter(c => c.shift_status === "Contattato" || c.shift_status === "In Attesa").sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
   const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita || "").getTime() - new Date(a.data_disponibilita || "").getTime());
   
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
+  // Rifiutati non ha più la sua tab, sono solo NO e andranno in archivio automaticamente
   const rifiutati = datiFiltratiAnno.filter(c => c.tipo_adesione === "NO");
   const archivio = datiFiltratiAnno;
 
@@ -138,10 +139,17 @@ export default function AdminDashboard() {
   if (vistaAttiva === "Già Donatori") datiMostrati = giaDonatori;
   if (vistaAttiva === "Pending") datiMostrati = pending;
   if (vistaAttiva === "Ci voglio pensare") datiMostrati = pensarci;
-  if (vistaAttiva === "Rifiutati (No)") datiMostrati = rifiutati;
   if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
-  // Avviso giornaliero in Gestione (Deve stare sotto a inGestione)
+  // Alert per "Ci voglio pensare" (se > 1 mese)
+  const personeDaContattarePensarci = pensarci.filter(c => {
+    const dataCreazione = new Date(c.created_at);
+    const unMeseFa = new Date();
+    unMeseFa.setMonth(unMeseFa.getMonth() - 1);
+    return dataCreazione < unMeseFa;
+  });
+
+  // Avvisi
   useEffect(() => {
     if (vistaAttiva === "In Gestione" && inGestione.length > 0) {
       const lastAlert = localStorage.getItem("lastContactAlert");
@@ -151,7 +159,7 @@ export default function AdminDashboard() {
         localStorage.setItem("lastContactAlert", today);
       }
     }
-    setSelectedContacts(new Set()); // Pulisce selezioni se cambi tab
+    setSelectedContacts(new Set());
   }, [vistaAttiva, annoAttivo, inGestione.length]);
 
   const getSlotDisponibili = () => {
@@ -173,6 +181,7 @@ export default function AdminDashboard() {
     return slots;
   };
 
+  // DATI ISTOGRAMMI (Raggruppati per scuola e anno)
   const statsScuole = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
     const scuola = c.istituto || "Non specificato";
     acc[scuola] = (acc[scuola] || 0) + 1;
@@ -180,22 +189,27 @@ export default function AdminDashboard() {
   }, {});
   const scuoleOrdinate = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
 
-  // Gestione selezioni Checkbox
-  const toggleSelection = (id: string) => {
-    const newSet = new Set(selectedContacts);
-    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
-    setSelectedContacts(newSet);
-  };
-  const toggleAll = () => {
-    if (selectedContacts.size === datiMostrati.length) setSelectedContacts(new Set());
-    else setSelectedContacts(new Set(datiMostrati.map(c => c.id)));
+  const getStatisticheAnnualiPerScuola = () => {
+    const maxVal = Math.max(...scuoleOrdinate.map(s => s[1]), 1);
+    const storici: Record<string, Record<string, number>> = {};
+    
+    // Raggruppa per scuola -> anno -> conteggio
+    candidature.forEach(c => {
+      const sc = c.istituto || "Non specificato";
+      const an = calcolaAnnoScolastico(c.created_at);
+      if(!storici[sc]) storici[sc] = {};
+      storici[sc][an] = (storici[sc][an] || 0) + 1;
+    });
+
+    return { storici, maxVal };
   };
 
-  // --- ESPORTAZIONE GOOGLE CONTATTI (SOLO SELEZIONATI E SOLO IN GESTIONE) ---
+  const { storici, maxVal } = getStatisticheAnnualiPerScuola();
+
+  // Esportazione Contatti
   const esportaGoogleContatti = () => {
     const contattiDaEsportare = datiMostrati.filter(c => selectedContacts.has(c.id));
     if (contattiDaEsportare.length === 0) return toast.error("Seleziona almeno una persona spuntando le caselle.");
-    
     const header = ["Given Name", "Family Name", "Phone 1 - Type", "Phone 1 - Value", "E-mail 1 - Type", "E-mail 1 - Value", "Organization 1 - Name", "Notes"].join(",");
     const rows = contattiDaEsportare.map(c => {
        const nome = c.nome ? c.nome.replace(/"/g, '""') : "";
@@ -219,20 +233,60 @@ export default function AdminDashboard() {
     toast.success(`Esportati ${contattiDaEsportare.length} contatti! Vai su Google Contatti -> Importa`);
   };
 
-  // Azioni Database
+  const toggleSelection = (id: string) => {
+    const newSet = new Set(selectedContacts);
+    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
+    setSelectedContacts(newSet);
+  };
+  const toggleAll = () => {
+    if (selectedContacts.size === datiMostrati.length) setSelectedContacts(new Set());
+    else setSelectedContacts(new Set(datiMostrati.map(c => c.id)));
+  };
+
+  // --- AZIONI DB ---
   const salvaModificheTurno = async (id: string) => {
     const salvataggio = toast.loading("Salvataggio in corso...");
-    const { error } = await supabase.from('candidature').update({ shift_status: editStatus, note_ricontatto: editNote, data_disponibilita: editData || null }).eq('id', id);
+    const payload: any = { 
+      shift_status: editStatus, 
+      note_ricontatto: editNote, 
+      data_disponibilita: editData || null 
+    };
+    if (editStatus === "Da Ricontattare") {
+      payload.data_ricontatto = editDataRicontatto || null;
+    } else {
+      payload.data_ricontatto = null; // Resetta se cambia status
+    }
+
+    const { error } = await supabase.from('candidature').update(payload).eq('id', id);
     if (!error) { toast.success("Turno aggiornato", { id: salvataggio }); setEditingId(null); fetchData(); } 
     else toast.error("Errore: " + error.message, { id: salvataggio });
   };
 
-  const impostaDaPensarci = async (id: string, scelta: 'SI' | 'NO') => {
-    const tipo = scelta === 'SI' ? 'Aspirante' : 'NO';
-    const status = 'Da Valutare';
-    const note = scelta === 'NO' ? 'Non interessato.' : 'Ha accettato dopo averci pensato.';
-    const { error } = await supabase.from('candidature').update({ tipo_adesione: tipo, shift_status: status, note_ricontatto: note }).eq('id', id);
-    if (!error) { toast.success("Scelta registrata!"); setEditingId(null); fetchData(); }
+  // Funzione unificata per la gestione "Ci voglio pensare" e "Già donatori"
+  const gestisciAdesioniSpeciali = async (id: string, azione: string) => {
+    const loadToast = toast.loading("Aggiornamento stato...");
+    let payload: any = {};
+
+    if (azione === 'PENSARCI_ATTESA') {
+      payload = { shift_status: 'In Attesa', scadenza_risposta: editScadenzaPensarci || null };
+    } else if (azione === 'PENSARCI_NO' || azione === 'DONATORE_NO') {
+      payload = { tipo_adesione: 'NO', shift_status: 'Da Valutare' };
+    } else if (azione === 'DONATORE_ATTESA') {
+      payload = { shift_status: 'In Attesa' };
+    } else if (azione === 'DONATORE_CONTATTATO') {
+      payload = { shift_status: 'Contattato' };
+    } else if (azione === 'DONATORE_RICONTATTARE') {
+      payload = { shift_status: 'Da Ricontattare' };
+    }
+
+    const { error } = await supabase.from('candidature').update(payload).eq('id', id);
+    if (!error) { 
+      toast.success("Stato aggiornato!", { id: loadToast }); 
+      setEditingId(null); 
+      fetchData(); 
+    } else {
+      toast.error("Errore!", { id: loadToast });
+    }
   };
 
   const rimuoviDaTurno = (id: string) => {
@@ -286,12 +340,11 @@ export default function AdminDashboard() {
     if(!error) { toast.success("Professore rimosso"); fetchData(); }
   };
 
-  // Funzione Badge Archivio
   const getBadgeArchivio = (tipo: string) => {
     if (tipo === "SÌ" || tipo === "SI" || tipo === "Aspirante") return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Sì / Aspirante</span>;
     if (tipo === "Già Donatore") return <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Già Donatore</span>;
     if (tipo === "Voglio pensarci") return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ci Pensa</span>;
-    if (tipo === "NO") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">Rifiutato (No)</span>;
+    if (tipo === "NO") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">NO (Rifiutato)</span>;
     return null;
   };
 
@@ -312,7 +365,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // CARICAMENTO CON LOGO CHE RIMBALZA
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
       <div className="relative mb-8">
@@ -329,7 +381,7 @@ export default function AdminDashboard() {
         vistaAttiva={vistaAttiva} setVistaAttivo={setVistaAttivo} 
         emailAmministratore={session.user.email} handleLogout={handleLogout}
         isMobileOpen={isSidebarOpen} setIsMobileOpen={setIsSidebarOpen}
-        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, rifiutati: rifiutati.length, archivio: candidature.length }}
+        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, archivio: candidature.length }} // rimossa 'rifiutati'
         />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -345,7 +397,6 @@ export default function AdminDashboard() {
           </div>
           
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* TASTO EXPORT SOLO IN GESTIONE */}
             {vistaAttiva === "In Gestione" && (
               <button onClick={esportaGoogleContatti} className="flex items-center bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-blue-100 transition-colors shadow-sm">
                 <span className="md:mr-2 text-base">📥</span>
@@ -369,20 +420,45 @@ export default function AdminDashboard() {
 
         <div className="flex-1 overflow-auto p-4 md:p-8 relative bg-slate-50">
           
+          {/* DASHBOARD */}
           {vistaAttiva === "Dashboard" && (
             <div className="max-w-5xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl">👥</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Totale Iscritti</p><p className="text-3xl font-black text-slate-800">{datiFiltratiAnno.length}</p></div>
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl shrink-0">👥</div>
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-500 font-semibold">Totale Iscritti</p>
+                    <div className="flex items-end justify-between">
+                      <p className="text-3xl font-black text-slate-800">{datiFiltratiAnno.length}</p>
+                      {/* Sparkline Simulato per i totali (se filtrato per tutti) */}
+                      {annoAttivo === "Tutti" && (
+                        <div className="flex items-end space-x-1 h-8 opacity-60">
+                           {Object.values(storici).map((scuolaData, i) => {
+                             const tot = Object.values(scuolaData).reduce((a,b)=>a+b,0);
+                             return <div key={i} className="w-2 bg-blue-400 rounded-t-sm" style={{height: `${(tot/maxVal)*100}%`}}></div>
+                           })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-xl">✅</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Pronti e Assegnati</p><p className="text-3xl font-black text-slate-800">{turniConfermati.length}</p></div>
+                  <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-xl shrink-0">✅</div>
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-500 font-semibold">Pronti e Assegnati</p>
+                    <div className="flex items-end justify-between">
+                      <p className="text-3xl font-black text-slate-800">{turniConfermati.length}</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl">⏳</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Da Gestire / Pending</p><p className="text-3xl font-black text-slate-800">{inGestione.length + pending.length}</p></div>
+                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl shrink-0">⏳</div>
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-500 font-semibold">Da Gestire / Pending</p>
+                    <div className="flex items-end justify-between">
+                      <p className="text-3xl font-black text-slate-800">{inGestione.length + pending.length}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -421,24 +497,60 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Statistiche e Istogrammi Scuole */}
               <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🏫</span> Rendimento Scuole ({annoAttivo})</h3>
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-left border-collapse min-w-[300px]">
-                    <thead className="bg-slate-50">
-                      <tr><th className="p-4 font-bold text-slate-600">Istituto</th><th className="p-4 font-bold text-slate-600 text-right">Adesioni Raccolte</th></tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {scuoleOrdinate.map(([scuola, count]) => (
-                        <tr key={scuola} className="hover:bg-slate-50"><td className="p-4 font-bold text-slate-800">{scuola}</td><td className="p-4 text-right font-black text-red-600 text-lg">{count}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🏫</span> Rendimento Scuole {annoAttivo === "Tutti" ? "(Storico)" : `(${annoAttivo})`}</h3>
+                
+                {annoAttivo === "Tutti" ? (
+                   <div className="space-y-6">
+                      {scuoleOrdinate.map(([scuola, totaleRecord]) => {
+                         const anniScuola = storici[scuola] || {};
+                         const anniOrdinati = Object.keys(anniScuola).sort().reverse();
+                         const maxValScuola = Math.max(...Object.values(anniScuola), 1);
+                         
+                         return (
+                           <div key={scuola} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                             <div className="flex justify-between items-end mb-2">
+                               <span className="font-bold text-slate-800">{scuola}</span>
+                               <span className="text-xs font-black bg-slate-100 text-slate-600 px-2 py-1 rounded">Totale Storico: {totaleRecord}</span>
+                             </div>
+                             <div className="flex space-x-2 items-end h-16 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                {anniOrdinati.map(anno => {
+                                  const val = anniScuola[anno];
+                                  const heightPerc = (val / maxValScuola) * 100;
+                                  return (
+                                    <div key={anno} className="flex flex-col items-center w-12 group">
+                                      <div className="w-full bg-red-500 rounded-t-sm transition-all duration-300 group-hover:bg-red-600 relative flex items-start justify-center" style={{ height: `${heightPerc}%`, minHeight: '4px' }}>
+                                         <span className="text-[10px] font-black text-white mt-1 opacity-0 group-hover:opacity-100">{val}</span>
+                                      </div>
+                                      <span className="text-[9px] text-slate-500 mt-1 truncate w-full text-center">{anno}</span>
+                                    </div>
+                                  )
+                                })}
+                             </div>
+                           </div>
+                         )
+                      })}
+                   </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left border-collapse min-w-[300px]">
+                      <thead className="bg-slate-50">
+                        <tr><th className="p-4 font-bold text-slate-600">Istituto</th><th className="p-4 font-bold text-slate-600 text-right">Adesioni Raccolte</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {scuoleOrdinate.map(([scuola, count]) => (
+                          <tr key={scuola} className="hover:bg-slate-50"><td className="p-4 font-bold text-slate-800">{scuola}</td><td className="p-4 text-right font-black text-red-600 text-lg">{count}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
+          {/* VISITE CONFERMATE */}
           {vistaAttiva === "Visite Confermate" && (
             <div className="space-y-4 animate-in fade-in max-w-6xl mx-auto">
               {turniConfermati.length === 0 && (
@@ -480,11 +592,12 @@ export default function AdminDashboard() {
                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ECG: {p.ha_fatto_ecg ? "Sì" : "No"}</span>
                             <p className="text-xs text-slate-500 mt-2 mb-2">{p.istituto}</p>
                             
-                            {/* AZIONI RAPIDE CONTATTI: Solo WA e Mail */}
                             <div className="flex flex-col space-y-2 mt-2 mb-4 border-t border-slate-200 pt-2">
                               <span className="text-[12px] font-bold text-slate-700 flex items-center"><span className="mr-1 text-base">📱</span> {p.cellulare}</span>
-                              <a href={`https://wa.me/39${p.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded text-[10px] font-black uppercase text-center hover:bg-green-200 transition-colors">WhatsApp</a>
-                              
+                              <div className="flex space-x-2">
+                                <a href={`https://wa.me/39${p.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded text-[10px] font-black uppercase text-center hover:bg-green-200 transition-colors">WhatsApp</a>
+                                {p.email && <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${p.email}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-slate-200 text-slate-700 border border-slate-300 px-2 py-1 rounded text-[10px] font-black uppercase text-center hover:bg-slate-300 transition-colors">Gmail</a>}
+                              </div>
                               <span className="text-[12px] font-medium text-slate-600 truncate flex items-center mt-2" title={p.email}><span className="mr-1 text-base">✉️</span> {p.email}</span>
                             </div>
 
@@ -499,110 +612,162 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* TABELLE COMUNI */}
           {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
-              {datiMostrati.length === 0 ? (
-                <div className="p-16 text-center">
-                  <div className="text-4xl mb-4">📭</div>
-                  <h3 className="text-lg font-bold text-slate-700">Non ci sono risposte in questa sezione.</h3>
-                  <p className="text-slate-500 text-sm mt-2">La lista è attualmente vuota.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto min-h-[500px]">
-                  <table className="w-full text-left border-collapse min-w-[700px]">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                        {/* HEADER CHECKBOX SOLO IN GESTIONE */}
-                        {vistaAttiva === "In Gestione" && (
-                          <th className="p-4 w-12 text-center border-r border-slate-100">
-                            <input type="checkbox" onChange={toggleAll} checked={selectedContacts.size === datiMostrati.length && datiMostrati.length > 0} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
-                          </th>
-                        )}
-                        <th className={`p-4 font-bold ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>Profilo</th>
-                        <th className="p-4 font-bold">Contatti</th>
-                        <th className="p-4 font-bold">Scuola & Medica</th>
-                        {["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && <th className="p-4 font-bold">Stato Turno</th>}
-                        {vistaAttiva !== "Archivio" ? <th className="p-4 font-bold pr-6 text-right">Azioni</th> : <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {datiMostrati.map((c) => {
-                        const statoIdoneita = checkIdoneita(c);
-                        return (
-                          <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'}`}>
-                            
-                            {/* CHECKBOX RIGA SOLO IN GESTIONE */}
-                            {vistaAttiva === "In Gestione" && (
-                              <td className="p-4 text-center border-r border-slate-100 align-top pt-5">
-                                <input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleSelection(c.id)} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
-                              </td>
-                            )}
-
-                            <td className={`p-4 align-top ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>
-                              <div className="text-xs text-slate-400 font-medium mb-1">{new Date(c.created_at).toLocaleDateString('it-IT')}</div>
-                              <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
-                                <span>{c.nome} {c.cognome}</span>
-                                {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
-                              </div>
-                              {/* BADGE ARCHIVIO/ALTRE TAB */}
-                              <div className="mt-1.5">
-                                {vistaAttiva === "Archivio" ? getBadgeArchivio(c.tipo_adesione) : <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>}
-                              </div>
-                            </td>
-
-                            <td className="p-4 align-top">
-                              <div className="mb-3 border-b border-slate-100 pb-2">
-                                <div className="flex items-center space-x-2 text-slate-800 font-bold mb-1.5"><span className="text-base">📱</span> <span>{c.cellulare}</span></div>
-                                <a href={`https://wa.me/39${c.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-green-100 inline-block transition-colors">WhatsApp</a>
-                              </div>
-                              <div>
-                                <div className="flex items-center space-x-2 text-slate-600 text-xs mb-1.5 font-medium"><span className="text-base">✉️</span> <span className="truncate max-w-[150px]" title={c.email}>{c.email}</span></div>
-                                <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}`} target="_blank" rel="noopener noreferrer" className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-slate-200 inline-block transition-colors">Gmail</a>
-                              </div>
-                            </td>
-
-                            <td className="p-4 align-top">
-                              <div className="font-bold text-slate-700">{c.istituto}</div>
-                              <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
-                              {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
-                            </td>
-
-                            {["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && (
-                              <td className="p-4 align-top">
-                                {editingId !== c.id && (
-                                  <div>
-                                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : c.shift_status === 'Contattato' ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status}</span>
-                                    {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
-                                  </div>
-                                )}
-                              </td>
-                            )}
-
-                            <td className="p-4 pr-6 text-right align-top">
-                              {["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && editingId !== c.id && (
-                                <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci</button>
-                              )}
-
-                              {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
-                                <button onClick={() => setEditingId(c.id)} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Esito Ricontatto</button>
-                              )}
-
-                              {vistaAttiva === "Archivio" && (
-                                <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm">Elimina</button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            <div className="space-y-4">
+              
+              {/* Alert Già Donatori */}
+              {vistaAttiva === "Già Donatori" && datiMostrati.length > 0 && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg flex items-start space-x-3 mb-4">
+                   <span className="text-2xl">🩸</span>
+                   <div>
+                     <h4 className="font-bold text-blue-800">Attenzione: Sono già donatori attivi!</h4>
+                     <p className="text-sm text-blue-600">Queste persone donano già presso il centro trasfusionale. Verifica le loro posizioni e gestiscile di conseguenza (se richiedono informazioni o altro).</p>
+                   </div>
                 </div>
               )}
+
+              {/* Alert Pensarci 1 Mese */}
+              {vistaAttiva === "Ci voglio pensare" && personeDaContattarePensarci.length > 0 && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg flex items-start space-x-3 mb-4">
+                   <span className="text-2xl">⏳</span>
+                   <div>
+                     <h4 className="font-bold text-yellow-800">Ci sono persone in attesa da più di un mese!</h4>
+                     <p className="text-sm text-yellow-700">Ricordati di inviare loro una mail e di impostare una data di scadenza per la risposta.</p>
+                   </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
+                {datiMostrati.length === 0 ? (
+                  <div className="p-16 text-center">
+                    <div className="text-4xl mb-4">📭</div>
+                    <h3 className="text-lg font-bold text-slate-700">Non ci sono risposte in questa sezione.</h3>
+                    <p className="text-slate-500 text-sm mt-2">La lista è attualmente vuota.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto min-h-[500px]">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                          {vistaAttiva === "In Gestione" && (
+                            <th className="p-4 w-12 text-center border-r border-slate-100">
+                              <input type="checkbox" onChange={toggleAll} checked={selectedContacts.size === datiMostrati.length && datiMostrati.length > 0} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
+                            </th>
+                          )}
+                          <th className={`p-4 font-bold ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>Profilo</th>
+                          <th className="p-4 font-bold">Contatti</th>
+                          <th className="p-4 font-bold">Scuola & Medica</th>
+                          {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare"].includes(vistaAttiva) && <th className="p-4 font-bold">Stato Turno</th>}
+                          {vistaAttiva !== "Archivio" ? <th className="p-4 font-bold pr-6 text-right">Azioni</th> : <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {datiMostrati.map((c) => {
+                          const statoIdoneita = checkIdoneita(c);
+                          
+                          // Controllo visivo per "Ci voglio pensare" (evidenzia in rosso la data se > 1 mese)
+                          const dataCreazione = new Date(c.created_at);
+                          const unMeseFa = new Date();
+                          unMeseFa.setMonth(unMeseFa.getMonth() - 1);
+                          const eVecchioDiUnMese = vistaAttiva === "Ci voglio pensare" && dataCreazione < unMeseFa;
+
+                          // Controllo disabilitazioni temporanee "Da ricontattare"
+                          const ricontattabileDa = c.data_ricontatto ? new Date(c.data_ricontatto) : null;
+                          const oggi = new Date();
+                          const ancoraInPausa = ricontattabileDa && ricontattabileDa > oggi;
+
+                          return (
+                            <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'} ${eVecchioDiUnMese ? 'bg-red-50/30' : ''}`}>
+                              
+                              {vistaAttiva === "In Gestione" && (
+                                <td className="p-4 text-center border-r border-slate-100 align-top pt-5">
+                                  <input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleSelection(c.id)} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
+                                </td>
+                              )}
+
+                              <td className={`p-4 align-top ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>
+                                <div className={`text-xs font-medium mb-1 ${eVecchioDiUnMese ? 'text-red-600 font-bold px-1 bg-red-100 inline-block rounded' : 'text-slate-400'}`}>
+                                  {eVecchioDiUnMese && '⚠️ '} {dataCreazione.toLocaleDateString('it-IT')}
+                                </div>
+                                <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
+                                  <span>{c.nome} {c.cognome}</span>
+                                  {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
+                                </div>
+                                <div className="mt-1.5">
+                                  {vistaAttiva === "Archivio" ? getBadgeArchivio(c.tipo_adesione) : <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>}
+                                </div>
+                              </td>
+
+                              <td className="p-4 align-top">
+                                <div className="mb-3 border-b border-slate-100 pb-2">
+                                  <div className="flex items-center space-x-2 text-slate-800 font-bold mb-1.5"><span className="text-base">📱</span> <span>{c.cellulare}</span></div>
+                                  <a href={`https://wa.me/39${c.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-green-100 inline-block transition-colors">WhatsApp</a>
+                                </div>
+                                <div>
+                                  <div className="flex items-center space-x-2 text-slate-600 text-xs mb-1.5 font-medium"><span className="text-base">✉️</span> <span className="truncate max-w-[150px]" title={c.email}>{c.email}</span></div>
+                                  <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}`} target="_blank" rel="noopener noreferrer" className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-slate-200 inline-block transition-colors">Gmail</a>
+                                </div>
+                              </td>
+
+                              <td className="p-4 align-top">
+                                <div className="font-bold text-slate-700">{c.istituto}</div>
+                                <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
+                                {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
+                              </td>
+
+                              {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare"].includes(vistaAttiva) && (
+                                <td className="p-4 align-top">
+                                  {editingId !== c.id && (
+                                    <div>
+                                      <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : (c.shift_status === 'Contattato' || c.shift_status === 'In Attesa') ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status || 'Da Valutare'}</span>
+                                      
+                                      {/* Scadenza pensaci o Data Disponibilità */}
+                                      {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Shift: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
+                                      {c.scadenza_risposta && <div className="text-[11px] text-red-500 mt-2 font-bold flex items-center">Risposta Entro: {new Date(c.scadenza_risposta).toLocaleDateString('it-IT')}</div>}
+                                      {ancoraInPausa && <div className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 mt-1 rounded inline-block font-bold">Pausa fino al: {ricontattabileDa.toLocaleDateString('it-IT')}</div>}
+                                    </div>
+                                  )}
+                                </td>
+                              )}
+
+                              <td className="p-4 pr-6 text-right align-top">
+                                {vistaAttiva === "In Gestione" && editingId !== c.id && (
+                                  <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); setEditDataRicontatto(c.data_ricontatto || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci Turno</button>
+                                )}
+
+                                {vistaAttiva === "Pending" && editingId !== c.id && (
+                                   <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); setEditDataRicontatto(c.data_ricontatto || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Aggiorna</button>
+                                )}
+
+                                {vistaAttiva === "Già Donatori" && editingId !== c.id && (
+                                  <button onClick={() => { setEditingId(c.id); }} className="bg-blue-600 text-white border border-blue-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm whitespace-nowrap">Gestisci Donatore</button>
+                                )}
+
+                                {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
+                                  <div className="flex flex-col space-y-2 items-end">
+                                    <button onClick={() => { setEditingId(c.id); setModalitaPensarci("INVIO_MAIL"); setEditScadenzaPensarci(""); }} className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-200 shadow-sm whitespace-nowrap">1. Imposta Scadenza</button>
+                                    <button onClick={() => { setEditingId(c.id); setModalitaPensarci("ESITO"); }} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">2. Esito Ricontatto</button>
+                                  </div>
+                                )}
+
+                                {vistaAttiva === "Archivio" && (
+                                  <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm">Elimina</button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* MODALI (Turni / Ricontatto) */}
-          {editingId && ["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && (
+          {/* MODALI (Turni standard - Gestione/Pending) */}
+          {editingId && ["In Gestione", "Pending"].includes(vistaAttiva) && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
               <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-red-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                 <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci Turno</h3>
@@ -610,18 +775,38 @@ export default function AdminDashboard() {
                   <>
                     <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
                       <option value="Da Valutare">⏳ Da Valutare</option>
-                      <option value="Contattato">📞 Contattato</option>
-                      <option value="Confermato">✅ Confermato</option>
+                      
+                      {/* Disabilita opzioni se è in pausa fino a data X */}
+                      {(() => {
+                         const candidato = candidature.find(c => c.id === editingId);
+                         const ricData = candidato?.data_ricontatto ? new Date(candidato.data_ricontatto) : null;
+                         const isInPausa = ricData && ricData > new Date();
+                         return (
+                           <>
+                             <option value="Contattato" disabled={isInPausa}>📞 Contattato {isInPausa ? '(In Pausa)' : ''}</option>
+                             <option value="Confermato" disabled={isInPausa}>✅ Confermato {isInPausa ? '(In Pausa)' : ''}</option>
+                           </>
+                         )
+                      })()}
+                      
                       <option value="Da Ricontattare">🔄 Da Ricontattare</option>
                     </select>
+
                     {(editStatus === "Contattato" || editStatus === "Confermato" || editStatus === "Da Valutare") && (
                       <select value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-500 font-medium bg-slate-50">
                         <option value="">-- Seleziona la data --</option>
                         {getSlotDisponibili().map(slot => <option key={slot.date} value={slot.date}>{new Date(slot.date).toLocaleDateString('it-IT')} ({slot.occupati}/4 occupati)</option>)}
                       </select>
                     )}
+
                     {editStatus === "Da Ricontattare" && (
-                      <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Motivazione (es: influenza)..." className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm h-20 resize-none outline-none focus:border-red-500 bg-slate-50"></textarea>
+                      <>
+                        <label className="block text-xs font-bold text-slate-600 mt-2 mb-1">Ricontattabile dal (Opzionale):</label>
+                        <input type="date" value={editDataRicontatto} onChange={e => setEditDataRicontatto(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-500 bg-slate-50 mb-2"/>
+                        
+                        <label className="block text-xs font-bold text-slate-600 mt-2 mb-1">Motivazione:</label>
+                        <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Motivazione (es: influenza)..." className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm h-20 resize-none outline-none focus:border-red-500 bg-slate-50"></textarea>
+                      </>
                     )}
                   </>
                 ) : (<div className="bg-red-50 p-4 text-center text-sm text-red-600 font-bold rounded-lg border border-red-200">Azione bloccata: L'utente non è idoneo per i turni.</div>)}
@@ -633,14 +818,49 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* MODALE (Ci Voglio Pensare - 2 Modalità) */}
           {editingId && vistaAttiva === "Ci voglio pensare" && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
               <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-slate-300 w-full max-w-xs space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Esito Ricontatto</h3>
-                <select onChange={(e) => { if(e.target.value) impostaDaPensarci(editingId, e.target.value as 'SI' | 'NO'); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
-                  <option value="">Seleziona...</option><option value="SI">✅ Accetta (Coda turni)</option><option value="NO">❌ Rifiuta</option>
+                
+                {modalitaPensarci === "INVIO_MAIL" ? (
+                  <>
+                    <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Invia Mail & Scadenza</h3>
+                    <p className="text-xs text-slate-500">Imposta una data entro la quale il ragazzo/a dovrà risponderti.</p>
+                    <input type="date" value={editScadenzaPensarci} onChange={e => setEditScadenzaPensarci(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold bg-slate-50" />
+                    
+                    <button onClick={() => gestisciAdesioniSpeciali(editingId, 'PENSARCI_ATTESA')} disabled={!editScadenzaPensarci} className="w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-blue-700 disabled:opacity-50">Salva in "Pending/Attesa"</button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Esito Definitivo</h3>
+                    <select onChange={(e) => { if(e.target.value) gestisciAdesioniSpeciali(editingId, e.target.value); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
+                      <option value="">Seleziona esito...</option>
+                      {/* Se accetta lo rimettiamo in gestione con stato da valutare */}
+                      <option value="DONATORE_NO">❌ Non Partecipa (Va in Archivio come NO)</option>
+                      {/* Non ho aggiunto SI perchè in teoria non cambia la tab finché non cambiano tipo_adesione, ma per semplicità gestiamo i "NO" o "In Attesa" */}
+                    </select>
+                  </>
+                )}
+
+                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200 mt-2">Annulla</button>
+              </div>
+            </div>
+          )}
+
+          {/* MODALE (Già Donatori) */}
+          {editingId && vistaAttiva === "Già Donatori" && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
+              <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-blue-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci "Già Donatore"</h3>
+                <select onChange={(e) => { if(e.target.value) gestisciAdesioniSpeciali(editingId, e.target.value); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50">
+                  <option value="">-- Scegli azione --</option>
+                  <option value="DONATORE_ATTESA">⏳ Sposta in Pending / Attesa</option>
+                  <option value="DONATORE_CONTATTATO">📞 Segna come Contattato</option>
+                  <option value="DONATORE_RICONTATTARE">🔄 Da Ricontattare</option>
+                  <option value="DONATORE_NO">❌ Non possono / Annullato (Archivio)</option>
                 </select>
-                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">Annulla</button>
+                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">ANNULLA</button>
               </div>
             </div>
           )}
@@ -722,4 +942,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
