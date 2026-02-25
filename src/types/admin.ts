@@ -3,6 +3,7 @@ export interface Candidato {
   created_at: string;
   nome: string;
   cognome: string;
+  sesso?: string | null; // Aggiunto Sesso
   data_nascita: string | null;
   ha_fatto_ecg: boolean | null;
   istituto: string;
@@ -17,7 +18,7 @@ export interface Candidato {
   data_ultima_donazione: string | null;
   data_ricontatto?: string | null; 
   scadenza_risposta?: string | null; 
-  note?: string | null; // Aggiunto per le note del form
+  note?: string | null;
 }
 
 export interface Professore {
