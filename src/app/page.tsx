@@ -293,7 +293,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                 
                 <div><label className={labelStyle}>Cellulare *</label><input type="tel" required onChange={(e) => setFormData({...formData, cellulare: e.target.value})} className={inputStyle} /></div>
                 <div><label className={labelStyle}>Email (Personale)</label><input type="email" onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputStyle} /></div>
-            </div>
+              </div>
+            </div> 
           )}
 
           {sezione === 4 && (
