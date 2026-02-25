@@ -1,22 +1,24 @@
 import { Toaster } from 'react-hot-toast';
+import PwaRegister from '@/components/admin/PwaRegister';
 
 export const metadata = {
   title: 'Donato Admin Dashboard',
-  manifest: '/manifest.json', // Attiva l'installazione PWA
+  manifest: '/manifest.json',
   themeColor: '#dc2626',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Donato Admin',
+    title: 'Donato',
   },
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <PwaRegister />
       {children}
-      {/* Configurazione globale delle notifiche */}
-      <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
+      {/* Toast spostati in alto al centro */}
+      <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
     </>
   );
 }
