@@ -61,8 +61,25 @@ export default function Home() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // --- NUOVI CONTROLLI DI VALIDAZIONE ---
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Permette numeri da 9 a 15 cifre (supporta prefissi come +39 o numeri senza prefisso)
+    const phoneRegex = /^[0-9+\s-]{9,15}$/;
+
+    if (formData.email && formData.email !== "N/A" && !emailRegex.test(formData.email)) {
+      alert("Per favore, inserisci un indirizzo email valido.");
+      return;
+    }
+
+    if (formData.cellulare && formData.cellulare !== "N/A" && !phoneRegex.test(formData.cellulare)) {
+      alert("Per favore, inserisci un numero di cellulare valido (almeno 9 cifre, es: 3401234567).");
+      return;
+    }
+    // --------------------------------------
+
     setLoading(true);
 
     const istitutoFinale = formData.istituto === "Altro" ? formData.istitutoAltro : formData.istituto;
