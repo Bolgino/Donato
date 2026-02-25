@@ -251,7 +251,8 @@ export default function AdminDashboard() {
     } else if (azione === 'PENSARCI_PARTECIPA') {
       payload = { tipo_adesione: 'Aspirante', shift_status: 'In Attesa', scadenza_risposta: null };
     } else if (azione === 'PENSARCI_NO' || azione === 'DONATORE_NO') {
-      payload = { tipo_adesione: 'NO', shift_status: 'Da Valutare', scadenza_risposta: null };
+      // FIX 400 ERROR: Sostituito 'NO' con 'No' in base alla restrizione del DB
+      payload = { tipo_adesione: 'No', shift_status: 'Da Valutare', scadenza_risposta: null };
     } else if (azione === 'DONATORE_ATTESA') {
       payload = { shift_status: 'In Attesa' };
     }
@@ -262,7 +263,7 @@ export default function AdminDashboard() {
       setEditingId(null); 
       fetchData(); 
     } else {
-      toast.error("Errore!", { id: loadToast });
+      toast.error("Errore! " + error.message, { id: loadToast });
     }
   };
 
@@ -321,7 +322,7 @@ export default function AdminDashboard() {
     if (tipo === "SÌ" || tipo === "SI" || tipo === "Aspirante") return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Sì / Aspirante</span>;
     if (tipo === "Già Donatore") return <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Già Donatore</span>;
     if (tipo === "Voglio pensarci") return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ci Pensa</span>;
-    if (tipo === "NO") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">NO (Rifiutato)</span>;
+    if (tipo === "NO" || tipo === "No") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">NO (Rifiutato)</span>;
     return null;
   };
 
@@ -650,10 +651,6 @@ export default function AdminDashboard() {
                           unMeseFa.setMonth(unMeseFa.getMonth() - 1);
                           const eVecchioDiUnMese = vistaAttiva === "Ci voglio pensare" && dataCreazione < unMeseFa;
 
-                          const ricontattabileDa = c.data_ricontatto ? new Date(c.data_ricontatto) : null;
-                          const oggi = new Date();
-                          const ancoraInPausa = ricontattabileDa && ricontattabileDa > oggi;
-
                           return (
                             <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'} ${eVecchioDiUnMese ? 'bg-red-50/30' : ''}`}>
                               
@@ -727,7 +724,18 @@ export default function AdminDashboard() {
                                       {/* Scadenza pensaci o Data Disponibilità */}
                                       {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Visita: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
                                       {c.scadenza_risposta && <div className="text-[11px] text-red-500 mt-2 font-bold flex items-center">Risposta Entro: {new Date(c.scadenza_risposta).toLocaleDateString('it-IT')}</div>}
-                                      {ancoraInPausa && <div className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 mt-1 rounded inline-block font-bold">Pausa fino al: {ricontattabileDa.toLocaleDateString('it-IT')}</div>}
+                                      
+                                      {/* Mostra note di ricontatto ed eventuale data "A partire dal" */}
+                                      {c.shift_status === 'Da Ricontattare' && c.data_ricontatto && (
+                                        <div className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 mt-1.5 rounded inline-block font-bold">
+                                          A partire dal: {new Date(c.data_ricontatto).toLocaleDateString('it-IT')}
+                                        </div>
+                                      )}
+                                      {c.shift_status === 'Da Ricontattare' && c.note_ricontatto && (
+                                        <div className="text-[10px] text-slate-600 mt-1.5 italic border-l-2 border-yellow-400 pl-1.5">
+                                          Motivo: {c.note_ricontatto}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </td>
@@ -828,7 +836,7 @@ export default function AdminDashboard() {
                   <option value="">-- Seleziona operazione --</option>
                   <option value="PENSARCI_SCADENZA">⏳ Imposta/Aggiorna Scadenza Risposta</option>
                   <option value="PENSARCI_PARTECIPA">✅ Partecipa (Diventa Aspirante e va in Pending)</option>
-                  <option value="PENSARCI_NO">❌ Non Interessato (Diventa NO e va in Archivio)</option>
+                  <option value="PENSARCI_NO">❌ Non Interessato (Diventa No e va in Archivio)</option>
                 </select>
 
                 {azionePensarci === "PENSARCI_SCADENZA" && (
