@@ -1,37 +1,28 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { Candidato } from "@/types/admin";
+import Sidebar from "@/components/admin/Sidebar";
+import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<any>(null);
-  const [candidature, setCandidature] = useState<any[]>([]);
   
-  // Stati per Loading e Anno
+  // Usiamo finalmente il tipo corretto invece di any
+  const [candidature, setCandidature] = useState<Candidato[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [fraseLoading, setFraseLoading] = useState("Verificando gli accessi...");
   const [annoAttivo, setAnnoAttivo] = useState<string>("Tutti");
   const [vistaAttiva, setVistaAttivo] = useState("Dashboard");
 
-  // Stati per la modifica veloce in Da Smistare/Pending
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editStatus, setEditStatus] = useState("");
+  const [editStatus, setEditStatus] = useState<any>("");
   const [editNote, setEditNote] = useState("");
   const [editData, setEditData] = useState("");
-
-  // Stato per i Turni Confermati (Visualizzazione ad Albero)
   const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
-
-  const frasiDivertenti = [
-    "Organizzando i turni...", 
-    "Svegliando i vampiri...", 
-    "Smistando le candidature...", 
-    "Calcolando le statistiche...", 
-    "Preparando i lettini...",
-    "Controllando l'emoglobina..."
-  ];
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -45,24 +36,20 @@ export default function AdminDashboard() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (loading && session) {
-      let i = 0;
-      interval = setInterval(() => {
-        i = (i + 1) % frasiDivertenti.length;
-        setFraseLoading(frasiDivertenti[i]);
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [loading, session]);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
+    const toastId = toast.loading("Accesso in corso...");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { alert("Errore di accesso: " + error.message); setIsLoggingIn(false); } 
-    else { setIsLoggingIn(false); fetchData(); }
+    
+    if (error) { 
+      toast.error("Errore di accesso: " + error.message, { id: toastId }); 
+      setIsLoggingIn(false); 
+    } else { 
+      toast.success("Accesso effettuato!", { id: toastId });
+      setIsLoggingIn(false); 
+      fetchData(); 
+    }
   };
 
   const handleLogout = async () => {
@@ -77,40 +64,88 @@ export default function AdminDashboard() {
       setCandidature(data || []);
       if (data && data.length > 0) {
           const anni = Array.from(new Set(data.map(c => calcolaAnnoScolastico(c.created_at)))).sort().reverse();
-          if(anni.length > 0) setAnnoAttivo(anni[0]);
+          if(anni.length > 0 && annoAttivo === "Tutti") setAnnoAttivo(anni[0]);
       }
+    } else {
+      toast.error("Errore nel recupero dati");
     }
-    setTimeout(() => setLoading(false), 1500); 
+    setLoading(false);
   };
 
   const salvaModificheTurno = async (id: string) => {
+    const salvataggio = toast.loading("Salvataggio in corso...");
     const { error } = await supabase
       .from('candidature')
       .update({ shift_status: editStatus, note_ricontatto: editNote, data_disponibilita: editData || null })
       .eq('id', id);
-    if (!error) { setEditingId(null); fetchData(); }
+      
+    if (!error) { 
+      toast.success("Turno aggiornato", { id: salvataggio });
+      setEditingId(null); 
+      fetchData(); 
+    } else {
+      toast.error("Errore: " + error.message, { id: salvataggio });
+    }
   };
 
   const impostaDaPensarci = async (id: string, scelta: 'SI' | 'NO') => {
     const tipo = scelta === 'SI' ? 'Aspirante' : 'NO';
     const status = 'Da Valutare';
     const note = scelta === 'NO' ? 'Non interessato.' : 'Ha accettato dopo averci pensato.';
+    
     const { error } = await supabase.from('candidature').update({ tipo_adesione: tipo, shift_status: status, note_ricontatto: note }).eq('id', id);
-    if (!error) { setEditingId(null); fetchData(); }
+    if (!error) { 
+      toast.success("Scelta registrata!");
+      setEditingId(null); 
+      fetchData(); 
+    }
   };
 
-  const rimuoviDaTurno = async (id: string) => {
-    if(!confirm("Vuoi davvero rimuovere questo ragazzo dal turno? Tornerà in 'Da Smistare'.")) return;
-    const { error } = await supabase.from('candidature').update({ shift_status: 'Da Ricontattare', data_disponibilita: null, note_ricontatto: "Rimosso dal turno. Da ricontattare." }).eq('id', id);
-    if (!error) fetchData();
+  const rimuoviDaTurno = (id: string) => {
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-bold">Rimuovere dal turno?</p>
+        <div className="flex gap-2">
+          <button onClick={async () => {
+            toast.dismiss(t.id);
+            const { error } = await supabase.from('candidature').update({ shift_status: 'Da Ricontattare', data_disponibilita: null, note_ricontatto: "Rimosso dal turno." }).eq('id', id);
+            if (!error) { toast.success("Rimosso con successo"); fetchData(); }
+          }} className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Sì, rimuovi</button>
+          <button onClick={() => toast.dismiss(t.id)} className="bg-slate-200 px-3 py-1 rounded text-xs font-bold">Annulla</button>
+        </div>
+      </div>
+    ));
   };
 
-  // NUOVA FUNZIONE: Eliminazione definitiva
-  const eliminaCandidato = async (id: string) => {
-    if(!confirm("ATTENZIONE: Azione irreversibile. Vuoi eliminare definitivamente questa persona dal database?")) return;
-    const { error } = await supabase.from('candidature').delete().eq('id', id);
-    if (!error) fetchData();
-    else alert("Errore durante l'eliminazione.");
+  // FUNZIONE ELIMINA AGGIORNATA
+  const eliminaCandidato = (id: string) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <p className="font-bold text-slate-800 text-sm">Vuoi eliminare definitivamente questa persona?</p>
+        <p className="text-xs text-red-600 font-medium">Azione irreversibile. Verrà cancellata dal database.</p>
+        <div className="flex gap-2 mt-1">
+          <button onClick={async () => {
+            toast.dismiss(t.id);
+            const loadToast = toast.loading("Eliminazione in corso...");
+            
+            // 1. Aggiornamento ottimistico: rimuove dalla UI subito
+            setCandidature(prev => prev.filter(c => c.id !== id));
+            
+            // 2. Cancellazione da DB
+            const { error } = await supabase.from('candidature').delete().eq('id', id);
+            
+            if (!error) { 
+              toast.success("Candidato eliminato definitivamente!", { id: loadToast });
+            } else { 
+              // Se fallisce (es. RLS Error), rimette l'utente nella UI e mostra l'errore
+              fetchData();
+              toast.error("Errore. Controlla le Policy Supabase (RLS): " + error.message, { id: loadToast });
+            }
+          }} className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md">Elimina Ora</button>
+          <button onClick={() => toast.dismiss(t.id)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-md text-xs font-bold border border-slate-200">Annulla</button>
+        </div>
+      </div>
+    ), { duration: 6000 });
   };
 
   // --- LOGICA E CALCOLI ---
@@ -121,7 +156,7 @@ export default function AdminDashboard() {
     return d.getMonth() < 8 ? `${year - 1}-${year}` : `${year}-${year + 1}`;
   };
 
-  const checkIdoneita = (c: any) => {
+  const checkIdoneita = (c: Candidato) => {
     const eta = c.data_nascita ? Math.floor((new Date().getTime() - new Date(c.data_nascita).getTime()) / 31557600000) : 0;
     const isMinorenne = eta < 18;
     let isSospeso = false;
@@ -137,7 +172,6 @@ export default function AdminDashboard() {
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
-  // 1. DA SMISTARE: Solo i Da Valutare o Da Ricontattare (NON contattati per turni e NON confermati)
   const daSmistare = datiFiltratiAnno.filter(c => 
     (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore" || c.tipo_adesione === "SÌ" || c.tipo_adesione === "SI") && 
     (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
@@ -147,32 +181,21 @@ export default function AdminDashboard() {
     return 0;
   });
 
-  // 2. PENDING: I Contattati (che attendono conferma per un turno)
   const pending = datiFiltratiAnno.filter(c => 
     (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore" || c.tipo_adesione === "SÌ" || c.tipo_adesione === "SI") && 
     c.shift_status === "Contattato"
-  ).sort((a, b) => new Date(a.data_disponibilita).getTime() - new Date(b.data_disponibilita).getTime());
+  ).sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
 
-  // 3. TURNI CONFERMATI: Ordinati dal più recente al meno recente (descendente)
-  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita).getTime() - new Date(a.data_disponibilita).getTime());
+  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita || "").getTime() - new Date(a.data_disponibilita || "").getTime());
 
-  // 4. CI VOGLIO PENSARE
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
-
-  // 5. ARCHIVIO
   const archivio = datiFiltratiAnno; 
 
-  let datiMostrati: any[] = [];
+  let datiMostrati: Candidato[] = [];
   if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
   if (vistaAttiva === "Pending") datiMostrati = pending;
   if (vistaAttiva === "Ci voglio pensare") datiMostrati = pensarci;
   if (vistaAttiva === "Archivio") datiMostrati = archivio;
-
-  const daValutareCount = daSmistare.filter(c => c.shift_status === "Da Valutare").length;
-  const contattatiCount = pending.length;
-  const daRicontattareCount = daSmistare.filter(c => c.shift_status === "Da Ricontattare").length;
-  const confermatiCount = turniConfermati.length;
-  const totSì = daSmistare.length + pending.length + confermatiCount;
 
   const getSlotDisponibili = () => {
     const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
@@ -202,104 +225,62 @@ export default function AdminDashboard() {
   }, {});
   const scuoleOrdinate = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
 
-  // --- LOGIN ---
+  // --- RENDER LOGIN / LOADING ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 selection:bg-red-500">
         <form onSubmit={handleLogin} className="bg-white p-10 rounded-2xl shadow-2xl text-center w-full max-w-sm animate-in zoom-in duration-300">
           <img src="/favicon.ico" alt="Donato" className="w-16 h-16 mx-auto mb-6 object-contain" />
           <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Area Riservata</h2>
-          <p className="text-sm text-slate-500 mb-8">Accesso protetto per amministratori.</p>
           <div className="space-y-4 mb-8">
-            <input 
-              type="email" required placeholder="Email Amministratore" value={email} onChange={(e) => setEmail(e.target.value)} 
-              className="w-full border-b-2 border-slate-200 focus:border-red-600 outline-none pb-2 text-center text-sm font-bold transition-colors text-slate-800 bg-transparent" 
-            />
-            <input 
-              type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} 
-              className="w-full border-b-2 border-slate-200 focus:border-red-600 outline-none pb-2 text-center text-xl tracking-widest transition-colors text-slate-800 bg-transparent" 
-            />
+            <input type="email" required placeholder="Email Amministratore" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border-b-2 border-slate-200 focus:border-red-600 outline-none pb-2 text-center text-sm font-bold bg-transparent" />
+            <input type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border-b-2 border-slate-200 focus:border-red-600 outline-none pb-2 text-center text-xl tracking-widest bg-transparent" />
           </div>
-          <button disabled={isLoggingIn} type="submit" className="w-full bg-red-600 text-white p-3 rounded-xl font-bold shadow-lg shadow-red-200 hover:bg-red-700 hover:-translate-y-0.5 transition-all disabled:opacity-50">
-            {isLoggingIn ? 'Verifica credenziali...' : 'Accedi'}
-          </button>
+          <button disabled={isLoggingIn} type="submit" className="w-full bg-red-600 text-white p-3 rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50">Accedi</button>
         </form>
       </div>
     );
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <div className="relative mb-8">
-          <img src="/favicon.ico" alt="Loading" className="w-24 h-24 animate-bounce object-contain z-10 relative" />
-          <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
-        </div>
-        <h2 className="text-2xl font-bold text-slate-700 animate-pulse">{fraseLoading}</h2>
-      </div>
-    );
+    return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50"><div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-red-200">
       
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-2xl z-10 hidden md:flex">
-        <div className="p-6 border-b border-slate-800 flex items-center space-x-3">
-          <img src="/favicon.ico" alt="Donato" className="w-10 h-10 object-contain bg-white rounded-lg p-1" />
-          <h1 className="text-xl font-bold text-white tracking-wide">Donato<span className="text-red-500">.</span></h1>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">Menu Principale</p>
-         {[
-            { nome: "Dashboard", icona: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
-            { nome: "Da Smistare", badge: daSmistare.length, icona: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-            { nome: "Pending", badge: pending.length, icona: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" }, // Icona orologio per il pending
-            { nome: "Turni Confermati", badge: turniConfermati.length, icona: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-            { nome: "Ci voglio pensare", badge: pensarci.length, icona: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
-            { nome: "Archivio", badge: candidature.length, icona: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" }
-          ].map((item) => (
-            <button key={item.nome} onClick={() => setVistaAttivo(item.nome)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${vistaAttiva === item.nome ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'hover:bg-slate-800 hover:text-white'}`}>
-              <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icona} /></svg>
-                <span className="font-medium">{item.nome}</span>
-              </div>
-              {item.badge !== undefined && <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${vistaAttiva === item.nome ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>{item.badge}</span>}
-            </button>
-          ))}
-        </nav>
-        <div className="p-4 border-t border-slate-800">
-          <div className="text-center mb-3"><span className="text-[10px] text-slate-500 uppercase tracking-widest">{session.user.email}</span></div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 p-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            <span>Disconnetti</span>
-          </button>
-        </div>
-      </aside>
+      {/* Componente Sidebar Isolato */}
+      <Sidebar 
+        vistaAttiva={vistaAttiva} 
+        setVistaAttivo={setVistaAttivo} 
+        emailAmministratore={session.user.email} 
+        handleLogout={handleLogout}
+        conteggi={{
+          daSmistare: daSmistare.length,
+          pending: pending.length,
+          confermati: turniConfermati.length,
+          pensarci: pensarci.length,
+          archivio: candidature.length
+        }}
+      />
 
       {/* CONTENUTO PRINCIPALE */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white border-b border-slate-200 p-6 flex justify-between items-center z-10 shadow-sm">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-800">{vistaAttiva}</h2>
-            <p className="text-sm text-slate-500 font-medium">{vistaAttiva === "Turni Confermati" ? turniConfermati.length : datiMostrati.length} risposte visualizzate</p>
+            <p className="text-sm text-slate-500 font-medium">{vistaAttiva === "Turni Confermati" ? turniConfermati.length : datiMostrati.length} risposte</p>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-              <span className="text-sm text-slate-500 font-bold pl-2">Anno:</span>
-              <select value={annoAttivo} onChange={(e) => setAnnoAttivo(e.target.value)} className="bg-white border border-slate-200 text-slate-700 text-sm rounded-md px-3 py-1 font-bold outline-none cursor-pointer">
-                {anniDisponibili.map(anno => <option key={anno} value={anno}>{anno}</option>)}
-              </select>
-            </div>
-            <button onClick={fetchData} className="flex items-center bg-slate-100 text-slate-600 px-4 py-2 rounded-lg font-medium hover:bg-slate-200 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-            </button>
+            <select value={annoAttivo} onChange={(e) => setAnnoAttivo(e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-2 font-bold outline-none cursor-pointer shadow-sm">
+              {anniDisponibili.map(anno => <option key={anno} value={anno}>{anno}</option>)}
+            </select>
           </div>
         </header>
 
         <div className="flex-1 overflow-auto p-6 md:p-8">
           
-          {/* DASHBOARD */}
+          {/* DASHBOARD COMPONENT (Per brevità inline, ma tipizzato) */}
           {vistaAttiva === "Dashboard" && (
             <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -309,46 +290,11 @@ export default function AdminDashboard() {
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
                   <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-xl">✅</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Totale "Sì"</p><p className="text-3xl font-black text-slate-800">{totSì}</p></div>
+                  <div><p className="text-sm text-slate-500 font-semibold">Pronti e Assegnati</p><p className="text-3xl font-black text-slate-800">{turniConfermati.length}</p></div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl">🤔</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Ci Pensano</p><p className="text-3xl font-black text-slate-800">{pensarci.length}</p></div>
-                </div>
-              </div>
-
-              {/* L'Albero Visivo (Funnel) */}
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento Turni</h3>
-                <div className="flex flex-col items-center">
-                  <div className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold shadow-md z-10 w-64 text-center border-b-4 border-slate-900">
-                    Tutti i "Sì" ({totSì})
-                  </div>
-                  <div className="w-1 h-8 bg-slate-200"></div>
-                  <div className="w-full max-w-3xl h-1 bg-slate-200 relative">
-                    <div className="absolute left-0 top-0 w-1 h-4 bg-slate-200"></div>
-                    <div className="absolute left-1/3 top-0 w-1 h-4 bg-slate-200"></div>
-                    <div className="absolute right-1/3 top-0 w-1 h-4 bg-slate-200"></div>
-                    <div className="absolute right-0 top-0 w-1 h-4 bg-slate-200"></div>
-                  </div>
-                  <div className="w-full max-w-4xl flex justify-between mt-4">
-                    <div className="flex flex-col items-center w-1/4 px-2">
-                      <div className="w-16 h-16 rounded-full bg-slate-100 border-4 border-slate-200 flex items-center justify-center text-xl font-black text-slate-600 mb-3 shadow-sm">{daValutareCount}</div>
-                      <span className="text-sm font-bold text-slate-700 text-center">Da Valutare</span>
-                    </div>
-                    <div className="flex flex-col items-center w-1/4 px-2">
-                      <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-blue-200 flex items-center justify-center text-xl font-black text-blue-600 mb-3 shadow-sm">{contattatiCount}</div>
-                      <span className="text-sm font-bold text-blue-700 text-center">Contattati / Pending</span>
-                    </div>
-                    <div className="flex flex-col items-center w-1/4 px-2">
-                      <div className="w-16 h-16 rounded-full bg-green-50 border-4 border-green-200 flex items-center justify-center text-xl font-black text-green-600 mb-3 shadow-sm">{confermatiCount}</div>
-                      <span className="text-sm font-bold text-green-700 text-center">Confermati</span>
-                    </div>
-                    <div className="flex flex-col items-center w-1/4 px-2">
-                      <div className="w-16 h-16 rounded-full bg-yellow-50 border-4 border-yellow-200 flex items-center justify-center text-xl font-black text-yellow-600 mb-3 shadow-sm">{daRicontattareCount}</div>
-                      <span className="text-sm font-bold text-yellow-700 text-center">Da Ricontattare</span>
-                    </div>
-                  </div>
+                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl">⏳</div>
+                  <div><p className="text-sm text-slate-500 font-semibold">Da Gestire / Pending</p><p className="text-3xl font-black text-slate-800">{daSmistare.length + pending.length}</p></div>
                 </div>
               </div>
 
@@ -370,7 +316,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* VISTA TURNI CONFERMATI (ALBERO) */}
+          {/* TURNI CONFERMATI */}
           {vistaAttiva === "Turni Confermati" && (
             <div className="space-y-4 animate-in fade-in max-w-6xl mx-auto">
               {Object.entries(
@@ -380,10 +326,8 @@ export default function AdminDashboard() {
                   acc[data].push(c);
                   return acc;
                 }, {})
-              )
-              // ORDINA DAL PIÙ RECENTE AL MENO RECENTE
-              .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
-              .map(([data, persone]: [any, any]) => (
+              ).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+              .map(([data, persone]: [any, Candidato[]]) => (
                 <div key={data} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   <div onClick={() => setExpandedTurno(expandedTurno === data ? null : data)} className="bg-slate-50 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors">
                     <div className="flex items-center space-x-4">
@@ -402,222 +346,130 @@ export default function AdminDashboard() {
                   {expandedTurno === data && (
                     <div className="p-6 bg-white border-t border-slate-100">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {persone.map((p: any) => (
+                        {persone.map((p) => (
                           <div key={p.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative group hover:shadow-md transition-shadow">
                             <p className="font-black text-slate-800 text-lg leading-tight">{p.nome} {p.cognome}</p>
-                            {/* AGGIUNTA DATA NASCITA ED ECG COME RICHIESTO */}
-                            <p className="text-xs text-slate-500 mb-1 mt-1">
-                              <strong>Nato il:</strong> {p.data_nascita ? new Date(p.data_nascita).toLocaleDateString('it-IT') : 'N/D'}
-                            </p>
+                            <p className="text-xs text-slate-500 mb-1 mt-1"><strong>Nato:</strong> {p.data_nascita ? new Date(p.data_nascita).toLocaleDateString('it-IT') : 'N/D'}</p>
                             <div className="flex items-center mb-2">
-                              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
-                                ECG: {p.ha_fatto_ecg ? "Sì" : "No"}
-                              </span>
+                              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ECG: {p.ha_fatto_ecg ? "Sì" : "No"}</span>
                             </div>
-                            
                             <p className="text-xs text-slate-500 mb-2">{p.istituto}</p>
                             <div className="flex items-center text-[11px] font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit mb-4">📱 {p.cellulare}</div>
-                            <button onClick={(e) => { e.stopPropagation(); rimuoviDaTurno(p.id); }} className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200 transition-all flex items-center shadow-sm">
-                               <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                               Rimuovi
-                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); rimuoviDaTurno(p.id); }} className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200">Rimuovi</button>
                           </div>
                         ))}
                       </div>
-                      {persone.length < 4 && data !== "Data non impostata" && (
-                        <div className="mt-4 border-2 border-dashed border-slate-200 rounded-xl p-4 text-center">
-                          <p className="text-sm font-bold text-slate-400">Restano {4 - persone.length} posti disponibili per questo turno</p>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
               ))}
-              {turniConfermati.length === 0 && (
-                <div className="p-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
-                   <div className="text-5xl mb-4">📅</div>
-                   <h3 className="text-xl font-bold text-slate-700">Nessun turno confermato</h3>
-                   <p className="text-slate-500 mt-2">I ragazzi che confermerai in "Da Smistare" o "Pending" appariranno qui.</p>
-                </div>
-              )}
             </div>
           )}
 
-          {/* VISTA TABELLE (Da Smistare, Pending, Ci Voglio Pensare, Archivio) */}
+          {/* TABELLE: Da Smistare, Pending, Ci Voglio Pensare, Archivio */}
           {["Da Smistare", "Pending", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
-              {datiMostrati.length === 0 ? (
-                <div className="p-16 text-center">
-                  <div className="text-4xl mb-4">📭</div>
-                  <h3 className="text-lg font-bold text-slate-700">Tutto pulito!</h3>
-                  <p className="text-slate-500">Non ci sono ragazzi in questa lista.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto min-h-[500px]">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                        <th className="p-4 font-bold pl-6">Data & Profilo</th>
-                        <th className="p-4 font-bold">Contatti</th>
-                        <th className="p-4 font-bold">Scuola & Medica</th>
-                        {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && <th className="p-4 font-bold">Stato Turno</th>}
-                        {/* Se siamo in Archivio, rinominiamo l'header delle azioni o lo togliamo se si preferisce */}
-                        {vistaAttiva !== "Archivio" && <th className="p-4 font-bold pr-6 text-right">Azioni</th>}
-                        {vistaAttiva === "Archivio" && <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {datiMostrati.map((c) => {
-                        const statoIdoneita = checkIdoneita(c);
+              <div className="overflow-x-auto min-h-[500px]">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                      <th className="p-4 font-bold pl-6">Data & Profilo</th>
+                      <th className="p-4 font-bold">Contatti</th>
+                      <th className="p-4 font-bold">Scuola & Medica</th>
+                      {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && <th className="p-4 font-bold">Stato Turno</th>}
+                      {vistaAttiva !== "Archivio" ? <th className="p-4 font-bold pr-6 text-right">Azioni</th> : <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {datiMostrati.map((c) => {
+                      const statoIdoneita = checkIdoneita(c);
+                      return (
+                        <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'}`}>
+                          
+                          <td className="p-4 pl-6 align-top">
+                            <div className="text-xs text-slate-400 font-medium mb-1">{new Date(c.created_at).toLocaleDateString('it-IT')}</div>
+                            <div className={`font-extrabold text-base flex items-center ${statoIdoneita.color}`}>
+                              {c.nome} {c.cognome}
+                              {!statoIdoneita.abile && <span className="ml-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
+                            </div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded mt-1 bg-slate-100 text-slate-600">{c.tipo_adesione}</div>
+                          </td>
 
-                        return (
-                          <tr key={c.id} className={`transition-colors group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'}`}>
-                            
-                            {/* Profilo */}
-                            <td className="p-4 pl-6 align-top">
-                              <div className="text-xs text-slate-400 font-medium mb-1">{new Date(c.created_at).toLocaleDateString('it-IT')}</div>
-                              <div className={`font-extrabold text-base flex items-center ${statoIdoneita.color}`}>
-                                {c.nome} {c.cognome}
-                                {!statoIdoneita.abile && <span className="ml-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">{statoIdoneita.motivo}</span>}
-                              </div>
-                              <div className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded mt-1 bg-slate-100 text-slate-600">{c.tipo_adesione}</div>
-                            </td>
+                          <td className="p-4 align-top">
+                            <div className="flex items-center space-x-2 text-slate-600 mb-1"><span className="text-base">📱</span> <span className="font-medium">{c.cellulare}</span></div>
+                            <div className="flex items-center space-x-2 text-slate-600 text-xs"><span className="text-base">✉️</span> <span>{c.email}</span></div>
+                          </td>
 
-                            {/* Contatti */}
-                            <td className="p-4 align-top">
-                              <div className="flex items-center space-x-2 text-slate-600 mb-1"><span className="text-base">📱</span> <span className="font-medium">{c.cellulare}</span></div>
-                              <div className="flex items-center space-x-2 text-slate-600 text-xs"><span className="text-base">✉️</span> <span>{c.email}</span></div>
-                            </td>
+                          <td className="p-4 align-top">
+                            <div className="font-semibold text-slate-700">{c.istituto}</div>
+                            {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded">ECG: <span className="font-bold">{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
+                          </td>
 
-                            {/* Scuola e Medica */}
-                            <td className="p-4 align-top">
-                              <div className="font-semibold text-slate-700">{c.istituto}</div>
-                              <div className="text-slate-500 text-xs mb-2">Classe: {c.classe || '-'}</div>
-                              {c.ha_fatto_ecg !== null && <div className="text-[10px] bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded mr-1">ECG: <span className="font-bold">{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
-                            </td>
-
-                            {/* Stato Turno (Per Da Smistare e Pending) */}
-                            {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && (
-                              <td className="p-4 align-top relative">
-                                {editingId === c.id ? (
-                                  <div className="space-y-4 w-[280px] bg-white p-4 rounded-xl shadow-2xl border-2 border-red-500 absolute z-50 left-0 top-0">
-                                    {statoIdoneita.abile ? (
-                                      <>
-                                        <div>
-                                          <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Stato Assegnazione</label>
-                                          <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold outline-none focus:border-red-500">
-                                            <option value="Da Valutare">⏳ Da Valutare</option>
-                                            <option value="Contattato">📞 Contattato</option>
-                                            <option value="Confermato">✅ Confermato</option>
-                                            <option value="Da Ricontattare">🔄 Da Ricontattare</option>
-                                          </select>
-                                        </div>
-                                        {(editStatus === "Contattato" || editStatus === "Confermato" || editStatus === "Da Valutare") && (
-                                          <div>
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Data Turno (Max 4 posti)</label>
-                                            <select value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm outline-none focus:border-red-500 font-medium">
-                                              <option value="">-- Seleziona la data --</option>
-                                              {getSlotDisponibili().map(slot => (
-                                                <option key={slot.date} value={slot.date}>
-                                                  {new Date(slot.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()} ({slot.occupati}/4 occupati)
-                                                </option>
-                                              ))}
-                                            </select>
-                                          </div>
-                                        )}
-                                        {editStatus === "Da Ricontattare" && (
-                                          <div className="space-y-2">
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Riprovare dal giorno:</label>
-                                              <input type="date" value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1 text-sm outline-none" />
-                                            </div>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Motivazione</label>
-                                              <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Es: Ha l'influenza..." className="w-full border border-slate-200 rounded-md px-2 py-1 text-sm h-14 resize-none outline-none"></textarea>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                        <p className="text-red-700 text-xs font-bold uppercase text-center">🚫 Azione Bloccata</p>
-                                        <p className="text-[10px] text-red-500 text-center mt-1">Impossibile inserire {statoIdoneita.motivo} nei turni.</p>
-                                      </div>
-                                    )}
-                                    <div className="flex space-x-2 pt-2">
-                                      <button onClick={() => salvaModificheTurno(c.id)} disabled={!statoIdoneita.abile} className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs font-black shadow-lg disabled:opacity-30 hover:bg-red-700">SALVA</button>
-                                      <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-500 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">ANNULLA</button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : c.shift_status === 'Contattato' ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                                      {c.shift_status === 'Da Valutare' ? '⏳ Da Valutare' : c.shift_status === 'Confermato' ? '✅ Confermato' : c.shift_status === 'Contattato' ? '📞 Contattato' : '🔄 Da Ricontattare'}
-                                    </span>
-                                    {c.shift_status === 'Contattato' && c.data_disponibilita && <div className="text-xs text-blue-600 mt-2 font-bold flex items-center">In attesa per il: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
-                                    {c.shift_status === 'Da Ricontattare' && c.data_disponibilita && <div className="text-xs text-red-600 mt-2 font-bold flex items-center">Riprovare dal: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
-                                    {c.shift_status === 'Da Ricontattare' && c.note_ricontatto && <div className="text-[11px] text-slate-600 mt-1 leading-tight italic bg-yellow-50 p-1.5 rounded border border-yellow-100">"{c.note_ricontatto}"</div>}
-                                  </div>
-                                )}
-                              </td>
-                            )}
-
-                            {/* Azioni */}
-                            <td className="p-4 pr-6 text-right align-top relative">
-                              
-                              {/* Gestione per "Da Smistare" e "Pending" */}
-                              {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && editingId !== c.id && (
-                                <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); }} className="bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:border-red-300 hover:text-red-600 transition-colors">
-                                  {vistaAttiva === "Pending" ? "Conferma Turno" : "Gestisci Turno"}
-                                </button>
-                              )}
-
-                              {/* Gestione per "Ci voglio pensare" */}
-                              {vistaAttiva === "Ci voglio pensare" && (
-                                <>
-                                  {editingId === c.id ? (
-                                    <div className="absolute z-50 right-6 bg-white p-4 shadow-xl border-2 border-slate-200 rounded-xl w-64 text-left">
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Esito ricontatto</label>
-                                      <select onChange={(e) => { if(e.target.value) impostaDaPensarci(c.id, e.target.value as 'SI' | 'NO'); }} className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm font-semibold outline-none focus:border-red-500 mb-3">
-                                        <option value="">Seleziona...</option>
-                                        <option value="SI">✅ Accetta (Metti in coda)</option>
-                                        <option value="NO">❌ Non interessato</option>
+                          {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && (
+                            <td className="p-4 align-top relative">
+                              {editingId === c.id ? (
+                                <div className="space-y-3 w-[280px] bg-white p-4 rounded-xl shadow-2xl border-2 border-red-500 absolute z-50 left-0 top-0">
+                                  {statoIdoneita.abile ? (
+                                    <>
+                                      <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm font-semibold outline-none focus:border-red-500">
+                                        <option value="Da Valutare">⏳ Da Valutare</option>
+                                        <option value="Contattato">📞 Contattato</option>
+                                        <option value="Confermato">✅ Confermato</option>
+                                        <option value="Da Ricontattare">🔄 Da Ricontattare</option>
                                       </select>
-                                      <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-500 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-200">ANNULLA</button>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => setEditingId(c.id)} className="bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:border-red-300 hover:text-red-600 transition-colors">
-                                      Gestisci Esito
-                                    </button>
-                                  )}
-                                </>
-                              )}
-
-                              {/* Eliminazione da Archivio */}
-                              {vistaAttiva === "Archivio" && (
-                                <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-red-600 hover:text-white transition-colors">
-                                  Elimina Definitivamente
-                                </button>
-                              )}
-
-                              {/* Motivazione visualizzata per "Archivio" e "Ci voglio pensare" */}
-                              {(vistaAttiva === "Ci voglio pensare" || vistaAttiva === "Archivio") && c.motivo_scelta && editingId !== c.id && (
-                                <div className="relative group/tooltip inline-block mt-2 ml-2">
-                                  <button className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 hover:bg-slate-200 cursor-help">Leggi Motivo</button>
-                                  <div className="absolute hidden group-hover/tooltip:block z-50 right-0 mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl text-left whitespace-normal leading-relaxed before:content-[''] before:absolute before:top-[-6px] before:right-6 before:border-b-8 before:border-b-slate-800 before:border-x-8 before:border-x-transparent">
-                                    {c.motivo_scelta}
+                                      {(editStatus === "Contattato" || editStatus === "Confermato" || editStatus === "Da Valutare") && (
+                                        <select value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm outline-none focus:border-red-500 font-medium">
+                                          <option value="">-- Seleziona la data --</option>
+                                          {getSlotDisponibili().map(slot => <option key={slot.date} value={slot.date}>{new Date(slot.date).toLocaleDateString('it-IT')} ({slot.occupati}/4 occupati)</option>)}
+                                        </select>
+                                      )}
+                                      {editStatus === "Da Ricontattare" && (
+                                        <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Motivazione..." className="w-full border border-slate-200 rounded-md px-2 py-1 text-sm h-14 resize-none outline-none"></textarea>
+                                      )}
+                                    </>
+                                  ) : (<div className="bg-red-50 p-2 text-center text-xs text-red-600 font-bold rounded">Bloccato: {statoIdoneita.motivo}</div>)}
+                                  <div className="flex space-x-2">
+                                    <button onClick={() => salvaModificheTurno(c.id)} disabled={!statoIdoneita.abile} className="flex-1 bg-red-600 text-white py-1.5 rounded text-xs font-black disabled:opacity-30">SALVA</button>
+                                    <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-500 py-1.5 rounded text-xs font-bold">ANNULLA</button>
                                   </div>
                                 </div>
+                              ) : (
+                                <div>
+                                  <span className={`px-2.5 py-1 rounded-md font-bold text-xs border ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : c.shift_status === 'Contattato' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status}</span>
+                                  {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold">Data: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
+                                </div>
                               )}
-
                             </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                          )}
+
+                          <td className="p-4 pr-6 text-right align-top">
+                            {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && editingId !== c.id && (
+                              <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); }} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600">Gestisci</button>
+                            )}
+
+                            {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
+                              <button onClick={() => setEditingId(c.id)} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold">Esito Ricontatto</button>
+                            )}
+
+                            {vistaAttiva === "Ci voglio pensare" && editingId === c.id && (
+                              <div className="absolute right-6 bg-white p-3 shadow-xl border rounded-xl w-48 text-left z-50">
+                                <select onChange={(e) => { if(e.target.value) impostaDaPensarci(c.id, e.target.value as 'SI' | 'NO'); }} className="w-full border mb-2 rounded p-1 text-sm">
+                                  <option value="">Seleziona...</option><option value="SI">✅ Accetta</option><option value="NO">❌ Rifiuta</option>
+                                </select>
+                                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 py-1 rounded text-xs font-bold">Annulla</button>
+                              </div>
+                            )}
+
+                            {vistaAttiva === "Archivio" && (
+                              <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all">Elimina</button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
