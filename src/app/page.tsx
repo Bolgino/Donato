@@ -251,7 +251,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
 
                 <div><label className={labelStyle}>Cellulare *</label><input type="tel" required onChange={(e) => setFormData({...formData, cellulare: e.target.value})} className={inputStyle} /></div>
-                <div><label className={labelStyle}>Email (Personale, no scolastica) *</label><input type="email" required onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputStyle} /></div>
+               <div><label className={labelStyle}>Email (Personale, no scolastica)</label><input type="email" onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputStyle} /></div>
               </div>
             </div>
           )}
@@ -292,8 +292,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div><label className={labelStyle}>Classe</label><input type="text" placeholder="Es: 5A" onChange={(e) => setFormData({...formData, classe: e.target.value})} className={inputStyle} /></div>
                 
                 <div><label className={labelStyle}>Cellulare *</label><input type="tel" required onChange={(e) => setFormData({...formData, cellulare: e.target.value})} className={inputStyle} /></div>
-                <div><label className={labelStyle}>Email (Personale) *</label><input type="email" required onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputStyle} /></div>
-              </div>
+                <div><label className={labelStyle}>Email (Personale)</label><input type="email" onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputStyle} /></div>
             </div>
           )}
 
