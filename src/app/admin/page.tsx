@@ -33,6 +33,9 @@ export default function AdminDashboard() {
   const [editScadenzaPensarci, setEditScadenzaPensarci] = useState("");
   const [modalitaPensarci, setModalitaPensarci] = useState<"INVIO_MAIL" | "ESITO">("ESITO");
 
+  // Modale Già Donatori
+  const [azioneDonatore, setAzioneDonatore] = useState("");
+
   const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
   const [editingProf, setEditingProf] = useState<Partial<Professore> | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -115,7 +118,6 @@ export default function AdminDashboard() {
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
-  // FILTRI VISTE
   const inGestione = datiFiltratiAnno.filter(c => 
     (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "SI" || c.tipo_adesione === "SÌ") && 
     (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
@@ -130,8 +132,6 @@ export default function AdminDashboard() {
   const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita || "").getTime() - new Date(a.data_disponibilita || "").getTime());
   
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
-  // Rifiutati non ha più la sua tab, sono solo NO e andranno in archivio automaticamente
-  const rifiutati = datiFiltratiAnno.filter(c => c.tipo_adesione === "NO");
   const archivio = datiFiltratiAnno;
 
   let datiMostrati: Candidato[] = [];
@@ -141,7 +141,6 @@ export default function AdminDashboard() {
   if (vistaAttiva === "Ci voglio pensare") datiMostrati = pensarci;
   if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
-  // Alert per "Ci voglio pensare" (se > 1 mese)
   const personeDaContattarePensarci = pensarci.filter(c => {
     const dataCreazione = new Date(c.created_at);
     const unMeseFa = new Date();
@@ -149,7 +148,6 @@ export default function AdminDashboard() {
     return dataCreazione < unMeseFa;
   });
 
-  // Avvisi
   useEffect(() => {
     if (vistaAttiva === "In Gestione" && inGestione.length > 0) {
       const lastAlert = localStorage.getItem("lastContactAlert");
@@ -181,7 +179,6 @@ export default function AdminDashboard() {
     return slots;
   };
 
-  // DATI ISTOGRAMMI (Raggruppati per scuola e anno)
   const statsScuole = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
     const scuola = c.istituto || "Non specificato";
     acc[scuola] = (acc[scuola] || 0) + 1;
@@ -193,7 +190,6 @@ export default function AdminDashboard() {
     const maxVal = Math.max(...scuoleOrdinate.map(s => s[1]), 1);
     const storici: Record<string, Record<string, number>> = {};
     
-    // Raggruppa per scuola -> anno -> conteggio
     candidature.forEach(c => {
       const sc = c.istituto || "Non specificato";
       const an = calcolaAnnoScolastico(c.created_at);
@@ -206,7 +202,6 @@ export default function AdminDashboard() {
 
   const { storici, maxVal } = getStatisticheAnnualiPerScuola();
 
-  // Esportazione Contatti
   const esportaGoogleContatti = () => {
     const contattiDaEsportare = datiMostrati.filter(c => selectedContacts.has(c.id));
     if (contattiDaEsportare.length === 0) return toast.error("Seleziona almeno una persona spuntando le caselle.");
@@ -243,9 +238,7 @@ export default function AdminDashboard() {
     else setSelectedContacts(new Set(datiMostrati.map(c => c.id)));
   };
 
-  // --- AZIONI DB ---
   const salvaModificheTurno = async (id: string) => {
-    // BLOCCO: Obbligo di inserire la data se lo stato è Contattato o Confermato
     if ((editStatus === "Contattato" || editStatus === "Confermato") && !editData) {
       toast.error("Devi obbligatoriamente selezionare una data per questo stato!");
       return;
@@ -268,7 +261,6 @@ export default function AdminDashboard() {
     else toast.error("Errore: " + error.message, { id: salvataggio });
   };
 
-  // Funzione unificata per la gestione "Ci voglio pensare" e "Già donatori"
   const gestisciAdesioniSpeciali = async (id: string, azione: string) => {
     const loadToast = toast.loading("Aggiornamento stato...");
     let payload: any = {};
@@ -279,10 +271,6 @@ export default function AdminDashboard() {
       payload = { tipo_adesione: 'NO', shift_status: 'Da Valutare' };
     } else if (azione === 'DONATORE_ATTESA') {
       payload = { shift_status: 'In Attesa' };
-    } else if (azione === 'DONATORE_CONTATTATO') {
-      payload = { shift_status: 'Contattato' };
-    } else if (azione === 'DONATORE_RICONTATTARE') {
-      payload = { shift_status: 'Da Ricontattare' };
     }
 
     const { error } = await supabase.from('candidature').update(payload).eq('id', id);
@@ -346,15 +334,6 @@ export default function AdminDashboard() {
     if(!error) { toast.success("Professore rimosso"); fetchData(); }
   };
 
-  const getBadgeArchivio = (tipo: string) => {
-    if (tipo === "SÌ" || tipo === "SI" || tipo === "Aspirante") return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Sì / Aspirante</span>;
-    if (tipo === "Già Donatore") return <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Già Donatore</span>;
-    if (tipo === "Voglio pensarci") return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ci Pensa</span>;
-    if (tipo === "NO") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">NO (Rifiutato)</span>;
-    return null;
-  };
-
-  // --- RENDER LOGIN E LOADING ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 selection:bg-red-500 p-4">
@@ -371,13 +350,24 @@ export default function AdminDashboard() {
     );
   }
 
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="relative mb-6">
+        <div className="w-16 h-16 border-4 border-slate-200 border-t-red-600 rounded-full animate-spin"></div>
+      </div>
+      <h2 className="text-xl md:text-2xl font-bold text-slate-700 animate-pulse text-center px-4">
+        {fraseLoading}
+      </h2>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-red-200">
       <Sidebar 
         vistaAttiva={vistaAttiva} setVistaAttivo={setVistaAttivo} 
         emailAmministratore={session.user.email} handleLogout={handleLogout}
         isMobileOpen={isSidebarOpen} setIsMobileOpen={setIsSidebarOpen}
-        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, archivio: candidature.length }} // rimossa 'rifiutati'
+        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, archivio: candidature.length }}
         />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -426,7 +416,6 @@ export default function AdminDashboard() {
                     <p className="text-sm text-slate-500 font-semibold">Totale Iscritti</p>
                     <div className="flex items-end justify-between">
                       <p className="text-3xl font-black text-slate-800">{datiFiltratiAnno.length}</p>
-                      {/* Sparkline Simulato per i totali (se filtrato per tutti) */}
                       {annoAttivo === "Tutti" && (
                         <div className="flex items-end space-x-1 h-8 opacity-60">
                            {Object.values(storici).map((scuolaData, i) => {
@@ -662,13 +651,11 @@ export default function AdminDashboard() {
                         {datiMostrati.map((c) => {
                           const statoIdoneita = checkIdoneita(c);
                           
-                          // Controllo visivo per "Ci voglio pensare" (evidenzia in rosso la data se > 1 mese)
                           const dataCreazione = new Date(c.created_at);
                           const unMeseFa = new Date();
                           unMeseFa.setMonth(unMeseFa.getMonth() - 1);
                           const eVecchioDiUnMese = vistaAttiva === "Ci voglio pensare" && dataCreazione < unMeseFa;
 
-                          // Controllo disabilitazioni temporanee "Da ricontattare"
                           const ricontattabileDa = c.data_ricontatto ? new Date(c.data_ricontatto) : null;
                           const oggi = new Date();
                           const ancoraInPausa = ricontattabileDa && ricontattabileDa > oggi;
@@ -690,8 +677,15 @@ export default function AdminDashboard() {
                                   <span>{c.nome} {c.cognome}</span>
                                   {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
                                 </div>
+                                {/* BADGE CHIARO */}
                                 <div className="mt-1.5">
-                                  {vistaAttiva === "Archivio" ? getBadgeArchivio(c.tipo_adesione) : <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>}
+                                  {c.tipo_adesione === 'Già Donatore' ? (
+                                    <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
+                                  ) : c.tipo_adesione === 'Aspirante' || c.tipo_adesione === 'SÌ' || c.tipo_adesione === 'SI' ? (
+                                    <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200">🌱 Aspirante</span>
+                                  ) : (
+                                    <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>
+                                  )}
                                 </div>
                               </td>
 
@@ -710,6 +704,14 @@ export default function AdminDashboard() {
                                 <div className="font-bold text-slate-700">{c.istituto}</div>
                                 <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
                                 {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
+                                
+                                {/* MOSTRA LE NOTE DEL MODULO */}
+                                {(c.note || (vistaAttiva === "Archivio" && c.motivo_scelta)) && (
+                                  <div className="mt-2 pt-2 border-t border-slate-100">
+                                    {c.motivo_scelta && vistaAttiva === "Archivio" && <div className="text-[11px] text-slate-600 mb-1"><strong>Risposte:</strong> {c.motivo_scelta}</div>}
+                                    {c.note && <div className="text-[11px] text-slate-600 bg-slate-100/80 p-2 rounded italic border border-slate-200 break-words">" {c.note} "</div>}
+                                  </div>
+                                )}
                               </td>
 
                               {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare"].includes(vistaAttiva) && (
@@ -719,7 +721,7 @@ export default function AdminDashboard() {
                                       <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : (c.shift_status === 'Contattato' || c.shift_status === 'In Attesa') ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status || 'Da Valutare'}</span>
                                       
                                       {/* Scadenza pensaci o Data Disponibilità */}
-                                      {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Shift: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
+                                      {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Visita: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
                                       {c.scadenza_risposta && <div className="text-[11px] text-red-500 mt-2 font-bold flex items-center">Risposta Entro: {new Date(c.scadenza_risposta).toLocaleDateString('it-IT')}</div>}
                                       {ancoraInPausa && <div className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 mt-1 rounded inline-block font-bold">Pausa fino al: {ricontattabileDa.toLocaleDateString('it-IT')}</div>}
                                     </div>
@@ -737,7 +739,7 @@ export default function AdminDashboard() {
                                 )}
 
                                 {vistaAttiva === "Già Donatori" && editingId !== c.id && (
-                                  <button onClick={() => { setEditingId(c.id); }} className="bg-blue-600 text-white border border-blue-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm whitespace-nowrap">Gestisci Donatore</button>
+                                  <button onClick={() => { setEditingId(c.id); setAzioneDonatore(""); }} className="bg-blue-600 text-white border border-blue-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm whitespace-nowrap">Gestisci Donatore</button>
                                 )}
 
                                 {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
@@ -767,50 +769,46 @@ export default function AdminDashboard() {
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
               <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-red-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                 <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci Turno</h3>
-                {checkIdoneita(candidature.find(c => c.id === editingId)!).abile ? (
-                  <>
-                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
-                      <option value="Da Valutare">⏳ Da Valutare</option>
-                      
-                      {/* Disabilita opzioni se è in pausa fino a data X */}
-                      {(() => {
-                         const candidato = candidature.find(c => c.id === editingId);
-                         const ricData = candidato?.data_ricontatto ? new Date(candidato.data_ricontatto) : null;
-                         
-                         // Aggiunto !! per forzare il risultato a un boolean (true o false) ed evitare null
-                         const isInPausa = !!(ricData && ricData > new Date()); 
-                         
-                         return (
-                           <>
-                             <option value="Contattato" disabled={isInPausa}>📞 Contattato {isInPausa ? '(In Pausa)' : ''}</option>
-                             <option value="Confermato" disabled={isInPausa}>✅ Confermato {isInPausa ? '(In Pausa)' : ''}</option>
-                           </>
-                         )
-                      })()}
-                      
-                      <option value="Da Ricontattare">🔄 Da Ricontattare</option>
-                    </select>
+                {(() => {
+                   const candidato = candidature.find(c => c.id === editingId);
+                   const idoneita = checkIdoneita(candidato!);
+                   const canSchedule = idoneita.abile; // Non blocco tutto se minorenne, blocco solo l'inserimento turni
+                   const ricData = candidato?.data_ricontatto ? new Date(candidato.data_ricontatto) : null;
+                   const isInPausa = !!(ricData && ricData > new Date()); 
 
-                    {(editStatus === "Contattato" || editStatus === "Confermato" || editStatus === "Da Valutare") && (
-                      <select value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-500 font-medium bg-slate-50">
-                        <option value="">-- Seleziona la data --</option>
-                        {getSlotDisponibili().map(slot => <option key={slot.date} value={slot.date}>{new Date(slot.date).toLocaleDateString('it-IT')} ({slot.occupati}/4 occupati)</option>)}
-                      </select>
-                    )}
-
-                    {editStatus === "Da Ricontattare" && (
-                      <>
-                        <label className="block text-xs font-bold text-slate-600 mt-2 mb-1">Ricontattabile dal (Opzionale):</label>
-                        <input type="date" value={editDataRicontatto} onChange={e => setEditDataRicontatto(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-500 bg-slate-50 mb-2"/>
+                   return (
+                     <>
+                        {!canSchedule && <div className="bg-red-50 p-3 text-center text-xs text-red-600 font-bold rounded-lg border border-red-200">L'utente non è convocabile ({idoneita.motivo}). Puoi comunque metterlo da ricontattare.</div>}
                         
-                        <label className="block text-xs font-bold text-slate-600 mt-2 mb-1">Motivazione:</label>
-                        <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Motivazione (es: influenza)..." className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm h-20 resize-none outline-none focus:border-red-500 bg-slate-50"></textarea>
-                      </>
-                    )}
-                  </>
-                ) : (<div className="bg-red-50 p-4 text-center text-sm text-red-600 font-bold rounded-lg border border-red-200">Azione bloccata: L'utente non è idoneo per i turni.</div>)}
+                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50 mt-2">
+                          <option value="Da Valutare">⏳ Da Valutare</option>
+                          <option value="Contattato" disabled={isInPausa || !canSchedule}>📞 Contattato {!canSchedule ? '(Non Idoneo)' : isInPausa ? '(In Pausa)' : ''}</option>
+                          <option value="Confermato" disabled={isInPausa || !canSchedule}>✅ Confermato {!canSchedule ? '(Non Idoneo)' : isInPausa ? '(In Pausa)' : ''}</option>
+                          <option value="Da Ricontattare">🔄 Da Ricontattare</option>
+                        </select>
+
+                        {(editStatus === "Contattato" || editStatus === "Confermato" || editStatus === "Da Valutare") && canSchedule && (
+                          <select value={editData} onChange={(e) => setEditData(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-500 font-medium bg-slate-50">
+                            <option value="">-- Seleziona data della visita --</option>
+                            {getSlotDisponibili().map(slot => <option key={slot.date} value={slot.date}>{new Date(slot.date).toLocaleDateString('it-IT')} ({slot.occupati}/4 occupati)</option>)}
+                          </select>
+                        )}
+
+                        {editStatus === "Da Ricontattare" && (
+                          <>
+                            <label className="block text-xs font-bold text-slate-600 mt-2 mb-1">Ricontattabile dal (Opzionale):</label>
+                            <input type="date" value={editDataRicontatto} onChange={e => setEditDataRicontatto(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-500 bg-slate-50 mb-2"/>
+                            
+                            <label className="block text-xs font-bold text-slate-600 mt-2 mb-1">Motivazione:</label>
+                            <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Motivazione (es: influenza, minorenne)..." className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm h-20 resize-none outline-none focus:border-red-500 bg-slate-50"></textarea>
+                          </>
+                        )}
+                     </>
+                   )
+                })()}
+
                 <div className="flex space-x-3 pt-2">
-                  <button onClick={() => salvaModificheTurno(editingId)} disabled={!checkIdoneita(candidature.find(c => c.id === editingId)!).abile} className="flex-1 bg-red-600 text-white py-3 rounded-xl text-sm font-black shadow-lg disabled:opacity-30 hover:bg-red-700">SALVA</button>
+                  <button onClick={() => salvaModificheTurno(editingId)} className="flex-1 bg-red-600 text-white py-3 rounded-xl text-sm font-black shadow-lg hover:bg-red-700">SALVA</button>
                   <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">ANNULLA</button>
                 </div>
               </div>
@@ -835,9 +833,7 @@ export default function AdminDashboard() {
                     <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Esito Definitivo</h3>
                     <select onChange={(e) => { if(e.target.value) gestisciAdesioniSpeciali(editingId, e.target.value); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
                       <option value="">Seleziona esito...</option>
-                      {/* Se accetta lo rimettiamo in gestione con stato da valutare */}
                       <option value="DONATORE_NO">❌ Non Partecipa (Va in Archivio come NO)</option>
-                      {/* Non ho aggiunto SI perchè in teoria non cambia la tab finché non cambiano tipo_adesione, ma per semplicità gestiamo i "NO" o "In Attesa" */}
                     </select>
                   </>
                 )}
@@ -849,17 +845,20 @@ export default function AdminDashboard() {
 
           {/* MODALE (Già Donatori) */}
           {editingId && vistaAttiva === "Già Donatori" && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => {setEditingId(null); setAzioneDonatore("");}}>
               <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-blue-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                 <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci "Già Donatore"</h3>
-                <select onChange={(e) => { if(e.target.value) gestisciAdesioniSpeciali(editingId, e.target.value); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50">
+                <p className="text-xs text-slate-500 mb-2">Decidi come spostare l'utente dalle nuove iscrizioni ai listini operativi.</p>
+                <select value={azioneDonatore} onChange={(e) => setAzioneDonatore(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50">
                   <option value="">-- Scegli azione --</option>
-                  <option value="DONATORE_ATTESA">⏳ Sposta in Pending / Attesa</option>
-                  <option value="DONATORE_CONTATTATO">📞 Segna come Contattato</option>
-                  <option value="DONATORE_RICONTATTARE">🔄 Da Ricontattare</option>
-                  <option value="DONATORE_NO">❌ Non possono / Annullato (Archivio)</option>
+                  <option value="DONATORE_ATTESA">⏳ Segna come Pending (da gestire)</option>
+                  <option value="DONATORE_NO">❌ Non possono / Segna come NO (Archivio)</option>
                 </select>
-                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">ANNULLA</button>
+                
+                <div className="flex space-x-3 pt-4 border-t border-slate-100">
+                  <button onClick={() => gestisciAdesioniSpeciali(editingId, azioneDonatore)} disabled={!azioneDonatore} className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-black shadow-lg disabled:opacity-40 hover:bg-blue-700">Conferma</button>
+                  <button onClick={() => {setEditingId(null); setAzioneDonatore("");}} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">Annulla</button>
+                </div>
               </div>
             </div>
           )}
@@ -941,5 +940,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-
