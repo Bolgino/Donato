@@ -380,7 +380,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
                   <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl">⏳</div>
-                  <div><p className="text-sm text-slate-500 font-semibold">Da Gestire / Pending</p><p className="text-3xl font-black text-slate-800">{daSmistare.length + pending.length}</p></div>
+                  <div><p className="text-sm text-slate-500 font-semibold">Da Gestire / Pending</p><p className="text-3xl font-black text-slate-800">{inGestione.length + pending.length}</p></div>
                 </div>
               </div>
 
@@ -389,7 +389,7 @@ export default function AdminDashboard() {
                 <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento</h3>
                 <div className="flex flex-col items-center">
                   <div className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold shadow-md z-10 w-64 text-center border-b-4 border-slate-900">
-                    Sì / Aspiranti ({daSmistare.length + pending.length + turniConfermati.length})
+                    Sì / Aspiranti ({inGestione.length + pending.length + turniConfermati.length})
                   </div>
                   <div className="w-1 h-8 bg-slate-200"></div>
                   <div className="w-full max-w-3xl h-1 bg-slate-200 relative">
@@ -400,7 +400,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="w-full max-w-4xl flex justify-between mt-4">
                     <div className="flex flex-col items-center w-1/4 px-2">
-                      <div className="w-16 h-16 rounded-full bg-slate-100 border-4 border-slate-200 flex items-center justify-center text-xl font-black text-slate-600 mb-3 shadow-sm">{daSmistare.filter(c => c.shift_status === "Da Valutare").length}</div>
+                      <div className="w-16 h-16 rounded-full bg-slate-100 border-4 border-slate-200 flex items-center justify-center text-xl font-black text-slate-600 mb-3 shadow-sm">{inGestione.filter(c => c.shift_status === "Da Valutare").length}</div>
                       <span className="text-sm font-bold text-slate-700 text-center">Da Valutare</span>
                     </div>
                     <div className="flex flex-col items-center w-1/4 px-2">
@@ -412,7 +412,7 @@ export default function AdminDashboard() {
                       <span className="text-sm font-bold text-green-700 text-center">Confermati</span>
                     </div>
                     <div className="flex flex-col items-center w-1/4 px-2">
-                      <div className="w-16 h-16 rounded-full bg-yellow-50 border-4 border-yellow-200 flex items-center justify-center text-xl font-black text-yellow-600 mb-3 shadow-sm">{daSmistare.filter(c => c.shift_status === "Da Ricontattare").length}</div>
+                      <div className="w-16 h-16 rounded-full bg-yellow-50 border-4 border-yellow-200 flex items-center justify-center text-xl font-black text-yellow-600 mb-3 shadow-sm">{inGestione.filter(c => c.shift_status === "Da Ricontattare").length}</div>
                       <span className="text-sm font-bold text-yellow-700 text-center">Da Ricontattare</span>
                     </div>
                   </div>
@@ -720,3 +720,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
