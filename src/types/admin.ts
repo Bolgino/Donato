@@ -10,11 +10,13 @@ export interface Candidato {
   cellulare: string;
   email: string;
   tipo_adesione: string;
-  shift_status: 'Da Valutare' | 'Contattato' | 'Confermato' | 'Da Ricontattare';
+  shift_status: 'Da Valutare' | 'Contattato' | 'Confermato' | 'Da Ricontattare' | 'In Attesa';
   data_disponibilita: string | null;
   note_ricontatto: string | null;
   motivo_scelta: string | null;
   data_ultima_donazione: string | null;
+  data_ricontatto?: string | null; // Aggiunto per "Da Ricontattare"
+  scadenza_risposta?: string | null; // Aggiunto per "Ci voglio pensare"
 }
 
 export interface Professore {
