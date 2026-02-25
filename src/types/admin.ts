@@ -15,8 +15,9 @@ export interface Candidato {
   note_ricontatto: string | null;
   motivo_scelta: string | null;
   data_ultima_donazione: string | null;
-  data_ricontatto?: string | null; // Aggiunto per "Da Ricontattare"
-  scadenza_risposta?: string | null; // Aggiunto per "Ci voglio pensare"
+  data_ricontatto?: string | null; 
+  scadenza_risposta?: string | null; 
+  note?: string | null; // Aggiunto per le note del form
 }
 
 export interface Professore {
