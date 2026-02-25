@@ -79,7 +79,19 @@ const handleSubmit = async (e: React.FormEvent) => {
       toast.error("Per favore, inserisci un numero di cellulare valido (almeno 9 cifre, es: 3401234567)."); // Modificato
       return;
     }
-    // --------------------------------------
+    // --- NUOVO CONTROLLO DATA DI NASCITA ---
+    if (formData.data_nascita) {
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0); // Azzera l'orario di oggi
+      const dataNascitaInserita = new Date(formData.data_nascita);
+      dataNascitaInserita.setHours(0, 0, 0, 0); // Azzera l'orario della data inserita
+
+      // Controlla se la data inserita è uguale a oggi (o successiva)
+      if (dataNascitaInserita >= oggi) {
+        toast.error("Inserisci una data di nascita valida (non può essere quella di oggi).");
+        return;
+      }
+    }
     // --------------------------------------
 
     setLoading(true);
