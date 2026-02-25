@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const [editDataRicontatto, setEditDataRicontatto] = useState("");
   
   const [editScadenzaPensarci, setEditScadenzaPensarci] = useState("");
-  const [modalitaPensarci, setModalitaPensarci] = useState<"INVIO_MAIL" | "ESITO">("ESITO");
+  const [azionePensarci, setAzionePensarci] = useState("");
 
   const [azioneDonatore, setAzioneDonatore] = useState("");
   const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
@@ -246,10 +246,12 @@ export default function AdminDashboard() {
     const loadToast = toast.loading("Aggiornamento stato...");
     let payload: any = {};
 
-    if (azione === 'PENSARCI_ATTESA') {
-      payload = { shift_status: 'In Attesa', scadenza_risposta: editScadenzaPensarci || null };
+    if (azione === 'PENSARCI_SCADENZA') {
+      payload = { scadenza_risposta: editScadenzaPensarci || null };
+    } else if (azione === 'PENSARCI_PARTECIPA') {
+      payload = { tipo_adesione: 'Aspirante', shift_status: 'In Attesa', scadenza_risposta: null };
     } else if (azione === 'PENSARCI_NO' || azione === 'DONATORE_NO') {
-      payload = { tipo_adesione: 'NO', shift_status: 'Da Valutare' };
+      payload = { tipo_adesione: 'NO', shift_status: 'Da Valutare', scadenza_risposta: null };
     } else if (azione === 'DONATORE_ATTESA') {
       payload = { shift_status: 'In Attesa' };
     }
@@ -668,7 +670,6 @@ export default function AdminDashboard() {
                                 <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
                                   <span>{c.nome} {c.cognome}</span>
                                   
-                                  {/* AGGIUNTO SESSO E DATA DI NASCITA IN TUTTE LE TAB */}
                                   <span className="text-[11px] text-slate-500 font-semibold mt-0.5">
                                     {c.data_nascita ? new Date(c.data_nascita).toLocaleDateString('it-IT') : 'Data N/D'}
                                     {c.sesso ? ` • ${c.sesso}` : ''}
@@ -704,11 +705,15 @@ export default function AdminDashboard() {
                                 <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
                                 {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
                                 
-                                {/* MOSTRA LE NOTE DEL MODULO */}
-                                {(c.note || (vistaAttiva === "Archivio" && c.motivo_scelta)) && (
-                                  <div className="mt-2 pt-2 border-t border-slate-100">
-                                    {c.motivo_scelta && vistaAttiva === "Archivio" && <div className="text-[11px] text-slate-600 mb-1"><strong>Risposte:</strong> {c.motivo_scelta}</div>}
-                                    {c.note && <div className="text-[11px] text-slate-600 bg-slate-100/80 p-2 rounded italic border border-slate-200 break-words">" {c.note} "</div>}
+                                {/* MOSTRA LE NOTE E LE MOTIVAZIONI */}
+                                {(c.note || ((vistaAttiva === "Archivio" || vistaAttiva === "Ci voglio pensare") && c.motivo_scelta)) && (
+                                  <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
+                                    {c.motivo_scelta && (vistaAttiva === "Archivio" || vistaAttiva === "Ci voglio pensare") && (
+                                      <div className="text-[11px] text-slate-600"><strong>Motivazione:</strong> {c.motivo_scelta}</div>
+                                    )}
+                                    {c.note && (
+                                      <div className="text-[11px] text-slate-600 bg-slate-100/80 p-2 rounded italic border border-slate-200 break-words">" {c.note} "</div>
+                                    )}
                                   </div>
                                 )}
                               </td>
@@ -742,10 +747,7 @@ export default function AdminDashboard() {
                                 )}
 
                                 {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
-                                  <div className="flex flex-col space-y-2 items-end">
-                                    <button onClick={() => { setEditingId(c.id); setModalitaPensarci("INVIO_MAIL"); setEditScadenzaPensarci(""); }} className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-200 shadow-sm whitespace-nowrap">1. Imposta Scadenza</button>
-                                    <button onClick={() => { setEditingId(c.id); setModalitaPensarci("ESITO"); }} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">2. Esito Ricontatto</button>
-                                  </div>
+                                  <button onClick={() => { setEditingId(c.id); setAzionePensarci(""); setEditScadenzaPensarci(c.scadenza_risposta || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci</button>
                                 )}
 
                                 {vistaAttiva === "Archivio" && (
@@ -814,30 +816,33 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* MODALE (Ci Voglio Pensare - 2 Modalità) */}
+          {/* MODALE (Ci Voglio Pensare - Gestione Unica) */}
           {editingId && vistaAttiva === "Ci voglio pensare" && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
-              <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-slate-300 w-full max-w-xs space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => {setEditingId(null); setAzionePensarci("");}}>
+              <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-slate-300 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                 
-                {modalitaPensarci === "INVIO_MAIL" ? (
-                  <>
-                    <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Invia Mail & Scadenza</h3>
-                    <p className="text-xs text-slate-500">Imposta una data entro la quale il ragazzo/a dovrà risponderti.</p>
+                <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci "Ci voglio pensare"</h3>
+                <p className="text-xs text-slate-500 mb-2">Scegli se aggiornare la scadenza per la risposta o registrare l'esito finale della persona.</p>
+                
+                <select value={azionePensarci} onChange={(e) => setAzionePensarci(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
+                  <option value="">-- Seleziona operazione --</option>
+                  <option value="PENSARCI_SCADENZA">⏳ Imposta/Aggiorna Scadenza Risposta</option>
+                  <option value="PENSARCI_PARTECIPA">✅ Partecipa (Diventa Aspirante e va in Pending)</option>
+                  <option value="PENSARCI_NO">❌ Non Interessato (Diventa NO e va in Archivio)</option>
+                </select>
+
+                {azionePensarci === "PENSARCI_SCADENZA" && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Entro quando deve rispondere?</label>
                     <input type="date" value={editScadenzaPensarci} onChange={e => setEditScadenzaPensarci(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold bg-slate-50" />
-                    
-                    <button onClick={() => gestisciAdesioniSpeciali(editingId, 'PENSARCI_ATTESA')} disabled={!editScadenzaPensarci} className="w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-blue-700 disabled:opacity-50">Salva in "Pending/Attesa"</button>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Esito Definitivo</h3>
-                    <select onChange={(e) => { if(e.target.value) gestisciAdesioniSpeciali(editingId, e.target.value); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
-                      <option value="">Seleziona esito...</option>
-                      <option value="DONATORE_NO">❌ Non Partecipa (Va in Archivio come NO)</option>
-                    </select>
-                  </>
+                  </div>
                 )}
 
-                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200 mt-2">Annulla</button>
+                <div className="flex space-x-3 pt-4 border-t border-slate-100 mt-4">
+                  <button onClick={() => gestisciAdesioniSpeciali(editingId, azionePensarci)} disabled={!azionePensarci || (azionePensarci === "PENSARCI_SCADENZA" && !editScadenzaPensarci)} className="flex-1 bg-red-600 text-white py-3 rounded-xl text-sm font-black shadow-lg hover:bg-red-700 disabled:opacity-50 transition-all">Conferma</button>
+                  <button onClick={() => {setEditingId(null); setAzionePensarci("");}} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200 transition-all">Annulla</button>
+                </div>
+
               </div>
             </div>
           )}
