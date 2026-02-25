@@ -200,21 +200,29 @@ export default function AdminDashboard() {
 
   const { storici, maxVal } = getStatisticheAnnualiPerScuola();
 
-  const esportaGoogleContatti = () => {
+const esportaGoogleContatti = () => {
     const contattiDaEsportare = datiMostrati.filter(c => selectedContacts.has(c.id));
     if (contattiDaEsportare.length === 0) return toast.error("Seleziona almeno una persona spuntando le caselle.");
-    const header = ["Given Name", "Family Name", "Phone 1 - Type", "Phone 1 - Value", "E-mail 1 - Type", "E-mail 1 - Value", "Organization 1 - Name", "Notes"].join(",");
-    const rows = contattiDaEsportare.map(c => {
-       const nome = c.nome ? c.nome.replace(/"/g, '""') : "";
-       const cognome = c.cognome ? c.cognome.replace(/"/g, '""') : "";
-       const telefono = c.cellulare ? c.cellulare.replace(/\D/g,'') : "";
-       const email = c.email ? c.email.replace(/"/g, '""') : "";
-       const scuola = c.istituto ? c.istituto.replace(/"/g, '""') : "";
-       const classe = c.classe ? c.classe.replace(/"/g, '""') : "";
-       return `"${nome}","${cognome}","Mobile","${telefono}","Home","${email}","${scuola}","Classe: ${classe}"`;
-    }).join("\n");
+
+    // Intestazione ESATTA basata sul file di esempio
+    const header = "Name Prefix;First Name;Middle Name;Last Name;Name Suffix;Phonetic First Name;Phonetic Middle Name;Phonetic Last Name;Nickname;E-mail 1 - Label;E-mail 1 - Value;Phone 1 - Label;Phone 1 - Value;Address 1 - Label;Address 1 - Country;Address 1 - Street;Address 1 - Extended Address;Address 1 - City;Address 1 - Region;Address 1 - Postal Code;Address 1 - PO Box;Organization Name;Organization Title;Organization Department;Birthday;Event 1 - Label;Event 1 - Value;Relation 1 - Label;Relation 1 - Value;Website 1 - Label;Website 1 - Value;Custom Field 1 - Label;Custom Field 1 - Value;Notes;Labels";
     
-    const csvContent = "\uFEFF" + header + "\n" + rows;
+    const rows = contattiDaEsportare.map(c => {
+       // Rimuoviamo i punti e virgola dai campi per evitare che "rompano" l'incolonnamento
+       const nome = c.nome ? c.nome.replace(/;/g, ' ') : "";
+       const cognome = c.cognome ? c.cognome.replace(/;/g, ' ') : "";
+       const telefono = c.cellulare ? c.cellulare.replace(/\D/g,'') : "";
+       const email = c.email ? c.email.replace(/;/g, ' ') : "";
+       const scuola = c.istituto ? c.istituto.replace(/;/g, ' ') : "";
+       const classe = c.classe ? c.classe.replace(/;/g, ' ') : "";
+       const note = `Scuola: ${scuola} - Classe: ${classe}`;
+
+       // Ricostruiamo la riga inserendo i dati nei campi corretti separati da ;
+       return `;${nome};;${cognome};;;;;;;${email};;${telefono};;;;;;;;;;;;;;;;;;;;${note};`;
+    }).join("\r\n");
+    
+    // Aggiungiamo BOM per la corretta lettura in Excel
+    const csvContent = "\uFEFF" + header + "\r\n" + rows;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1007,4 +1015,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
