@@ -119,7 +119,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     }]);
 
     setLoading(false);
-    if (error) toast.error("C'è stato un errore: " + error.message);;
+    if (error) toast.error("C'è stato un errore: " + error.message);
     else setInviato(true);
   };
 
