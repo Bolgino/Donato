@@ -280,7 +280,7 @@ export default function AdminDashboard() {
 
         <div className="flex-1 overflow-auto p-6 md:p-8">
           
-          {/* DASHBOARD COMPONENT (Per brevità inline, ma tipizzato) */}
+          {/* DASHBOARD COMPONENT */}
           {vistaAttiva === "Dashboard" && (
             <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -295,6 +295,41 @@ export default function AdminDashboard() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
                   <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center text-xl">⏳</div>
                   <div><p className="text-sm text-slate-500 font-semibold">Da Gestire / Pending</p><p className="text-3xl font-black text-slate-800">{daSmistare.length + pending.length}</p></div>
+                </div>
+              </div>
+
+              {/* L'ALBERO / FUNNEL È TORNATO! */}
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hidden md:block">
+                <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento Turni</h3>
+                <div className="flex flex-col items-center">
+                  <div className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold shadow-md z-10 w-64 text-center border-b-4 border-slate-900">
+                    Tutti i "Sì" ({daSmistare.length + pending.length + turniConfermati.length})
+                  </div>
+                  <div className="w-1 h-8 bg-slate-200"></div>
+                  <div className="w-full max-w-3xl h-1 bg-slate-200 relative">
+                    <div className="absolute left-0 top-0 w-1 h-4 bg-slate-200"></div>
+                    <div className="absolute left-1/3 top-0 w-1 h-4 bg-slate-200"></div>
+                    <div className="absolute right-1/3 top-0 w-1 h-4 bg-slate-200"></div>
+                    <div className="absolute right-0 top-0 w-1 h-4 bg-slate-200"></div>
+                  </div>
+                  <div className="w-full max-w-4xl flex justify-between mt-4">
+                    <div className="flex flex-col items-center w-1/4 px-2">
+                      <div className="w-16 h-16 rounded-full bg-slate-100 border-4 border-slate-200 flex items-center justify-center text-xl font-black text-slate-600 mb-3 shadow-sm">{daSmistare.filter(c => c.shift_status === "Da Valutare").length}</div>
+                      <span className="text-sm font-bold text-slate-700 text-center">Da Valutare</span>
+                    </div>
+                    <div className="flex flex-col items-center w-1/4 px-2">
+                      <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-blue-200 flex items-center justify-center text-xl font-black text-blue-600 mb-3 shadow-sm">{pending.length}</div>
+                      <span className="text-sm font-bold text-blue-700 text-center">Pending</span>
+                    </div>
+                    <div className="flex flex-col items-center w-1/4 px-2">
+                      <div className="w-16 h-16 rounded-full bg-green-50 border-4 border-green-200 flex items-center justify-center text-xl font-black text-green-600 mb-3 shadow-sm">{turniConfermati.length}</div>
+                      <span className="text-sm font-bold text-green-700 text-center">Confermati</span>
+                    </div>
+                    <div className="flex flex-col items-center w-1/4 px-2">
+                      <div className="w-16 h-16 rounded-full bg-yellow-50 border-4 border-yellow-200 flex items-center justify-center text-xl font-black text-yellow-600 mb-3 shadow-sm">{daSmistare.filter(c => c.shift_status === "Da Ricontattare").length}</div>
+                      <span className="text-sm font-bold text-yellow-700 text-center">Da Ricontattare</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -477,4 +512,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
