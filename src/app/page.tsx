@@ -78,7 +78,6 @@ export default function Home() {
     const adesioneDb = tipoAdesione === "Sì_Nuovo" ? "Aspirante" : tipoAdesione === "Sì_Donatore" ? "Già Donatore" : tipoAdesione === "Pensarci" ? "Voglio pensarci" : "No";
     const questionarioFinale = [motiviUniti, seiFinale].filter(Boolean).join(" | Sei: ");
 
-    // TRADUZIONE ECG DA TESTO A BOOLEANO PER SUPABASE
     let ecgBooleano = null;
     if (formData.ha_fatto_ecg === "Sì") ecgBooleano = true;
     if (formData.ha_fatto_ecg === "No") ecgBooleano = false;
@@ -90,7 +89,7 @@ export default function Home() {
       classe: formData.classe,
       istituto: istitutoFinale,
       data_nascita: formData.data_nascita || null,
-      ha_fatto_ecg: ecgBooleano, // <-- Usiamo la variabile convertita!
+      ha_fatto_ecg: ecgBooleano,
       cellulare: formData.cellulare || "N/A",
       email: formData.email || "N/A",
       data_ultima_donazione: formData.data_ultima_donazione || null,
@@ -119,16 +118,15 @@ export default function Home() {
     );
   }
 
-  // Stili riutilizzabili per un look pulito
   const inputStyle = "w-full border-b-2 border-gray-200 focus:border-red-600 focus:ring-0 outline-none pb-2 bg-transparent transition-colors text-gray-800 font-medium placeholder-gray-400";
   const labelStyle = "block mb-2 text-sm font-semibold text-gray-600 uppercase tracking-wide";
   const cardOptionStyle = "flex items-center space-x-3 cursor-pointer p-3 rounded-xl border border-gray-100 hover:bg-red-50 hover:border-red-200 transition-all duration-200 shadow-sm hover:shadow-md bg-white";
+  const maxDate = new Date().toISOString().split('T')[0];
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-200 py-10 px-4 font-sans text-gray-800 selection:bg-red-200">
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border-t-8 border-red-600">
         
-        {/* INTESTAZIONE COMUNE */}
         <div className="p-8 md:p-10 border-b border-gray-100 bg-white">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-3 h-8 bg-red-600 rounded-full"></div>
@@ -142,7 +140,6 @@ export default function Home() {
 
         <form onSubmit={handleSubmit} className="p-8 md:p-10 space-y-10 bg-[#fafcff]">
           
-          {/* SEZIONE 1: La Scelta */}
           {sezione === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <p className="mb-5 text-lg font-medium text-gray-800">Come desideri procedere? Scegli un'opzione:</p>
@@ -167,7 +164,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* SEZIONE 2: Nuovo Aspirante */}
           {sezione === 2 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
               <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
@@ -194,8 +190,10 @@ export default function Home() {
                   )}
                 </div>
 
-                <div><label className={labelStyle}>Classe *</label><input type="text" placeholder="Es: 5A" required onChange={(e) => setFormData({...formData, classe: e.target.value})} className={inputStyle} /></div>
-                <div><label className={labelStyle}>Data di nascita *</label><input type="date" required onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
+                {/* RIMOSSO REQUIRED DALLA CLASSE */}
+                <div><label className={labelStyle}>Classe</label><input type="text" placeholder="Es: 5A" onChange={(e) => setFormData({...formData, classe: e.target.value})} className={inputStyle} /></div>
+                {/* AGGIUNTO MAX ALLA DATA DI NASCITA */}
+                <div><label className={labelStyle}>Data di nascita *</label><input type="date" required max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
                 
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Hai fatto da meno di 2 anni l'ECG (elettrocardiogramma)?</label>
@@ -211,7 +209,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* SEZIONE 3: Già donatore */}
           {sezione === 3 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
@@ -226,7 +223,7 @@ export default function Home() {
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Ultima donazione/visita di idoneità *</label>
                   <p className="text-xs text-gray-500 mb-3">(Ricorda: puoi donare dopo 3 mesi dall'ultima donazione e dopo 1 mese dalla prima visita)</p>
-                  <input type="date" required onChange={(e) => setFormData({...formData, data_ultima_donazione: e.target.value})} className={inputStyle} />
+                  <input type="date" required max={maxDate} onChange={(e) => setFormData({...formData, data_ultima_donazione: e.target.value})} className={inputStyle} />
                 </div>
                 
                 <div className="md:col-span-2">
@@ -250,7 +247,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* SEZIONE 4: Voglio pensarci */}
           {sezione === 4 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100">
@@ -261,7 +257,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
                 <div><label className={labelStyle}>Nome *</label><input type="text" required onChange={(e) => setFormData({...formData, nome: e.target.value})} className={inputStyle} /></div>
                 <div><label className={labelStyle}>Cognome *</label><input type="text" required onChange={(e) => setFormData({...formData, cognome: e.target.value})} className={inputStyle} /></div>
-                <div><label className={labelStyle}>Quando sei nato?</label><input type="date" onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
+                <div><label className={labelStyle}>Quando sei nato?</label><input type="date" max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
                 
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Istituto *</label>
@@ -313,7 +309,6 @@ export default function Home() {
                 
                 <div>
                   <label className={labelStyle}>Sesso</label>
-                  {/* MODIFICA: flex-wrap e gap ridotto per impedire tagli su schermi piccoli */}
                   <div className="flex flex-wrap gap-3 mt-3">
                     {["Maschio", "Femmina", "Altro"].map((opzione) => (
                       <label key={opzione} className={cardOptionStyle + " flex-1 min-w-[100px] justify-center"}>
