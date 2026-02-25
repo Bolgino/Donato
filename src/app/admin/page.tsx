@@ -13,29 +13,23 @@ export default function AdminDashboard() {
   const [candidature, setCandidature] = useState<Candidato[]>([]);
   const [professori, setProfessori] = useState<Professore[]>([]);
   
-  const [loading, setLoading] = useState(true);
-  const [fraseLoading, setFraseLoading] = useState("Verificando gli accessi...");
-  const frasiDivertenti = ["Organizzando i turni...", "Svegliando i vampiri...", "Smistando le candidature...", "Calcolando le statistiche...", "Preparando i lettini...", "Controllando l'emoglobina..."];
+  const [loading, setLoading] = useState(false);
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [annoAttivo, setAnnoAttivo] = useState<string>("Tutti");
   const [vistaAttiva, setVistaAttivo] = useState("Dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Stati modali edit base
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<any>("");
   const [editNote, setEditNote] = useState("");
   const [editData, setEditData] = useState("");
   const [editDataRicontatto, setEditDataRicontatto] = useState("");
   
-  // Modale per "Ci voglio pensare"
   const [editScadenzaPensarci, setEditScadenzaPensarci] = useState("");
   const [modalitaPensarci, setModalitaPensarci] = useState<"INVIO_MAIL" | "ESITO">("ESITO");
 
-  // Modale Già Donatori
   const [azioneDonatore, setAzioneDonatore] = useState("");
-
   const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
   const [editingProf, setEditingProf] = useState<Partial<Professore> | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -44,25 +38,12 @@ export default function AdminDashboard() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchData();
-      else setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
     return () => subscription.unsubscribe();
   }, []);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (loading && session) {
-      let i = 0;
-      interval = setInterval(() => {
-        i = (i + 1) % frasiDivertenti.length;
-        setFraseLoading(frasiDivertenti[i]);
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [loading, session]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +75,7 @@ export default function AdminDashboard() {
     } else toast.error("Errore candidature");
 
     if (!profRes.error) setProfessori(profRes.data || []);
-    setTimeout(() => setLoading(false), 1500); 
+    setLoading(false);
   };
 
   const calcolaAnnoScolastico = (dataString: string) => {
@@ -334,6 +315,14 @@ export default function AdminDashboard() {
     if(!error) { toast.success("Professore rimosso"); fetchData(); }
   };
 
+  const getBadgeArchivio = (tipo: string) => {
+    if (tipo === "SÌ" || tipo === "SI" || tipo === "Aspirante") return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Sì / Aspirante</span>;
+    if (tipo === "Già Donatore") return <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Già Donatore</span>;
+    if (tipo === "Voglio pensarci") return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ci Pensa</span>;
+    if (tipo === "NO") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">NO (Rifiutato)</span>;
+    return null;
+  };
+
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 selection:bg-red-500 p-4">
@@ -349,17 +338,6 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-      <div className="relative mb-6">
-        <div className="w-16 h-16 border-4 border-slate-200 border-t-red-600 rounded-full animate-spin"></div>
-      </div>
-      <h2 className="text-xl md:text-2xl font-bold text-slate-700 animate-pulse text-center px-4">
-        {fraseLoading}
-      </h2>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-red-200">
@@ -573,7 +551,21 @@ export default function AdminDashboard() {
                         {persone.map((p) => (
                           <div key={p.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative group hover:shadow-md transition-shadow">
                             <p className="font-black text-slate-800 text-lg leading-tight">{p.nome} {p.cognome}</p>
-                            <p className="text-xs text-slate-500 mb-1 mt-1"><strong>Nato:</strong> {p.data_nascita ? new Date(p.data_nascita).toLocaleDateString('it-IT') : 'N/D'}</p>
+                            
+                            {/* BADGE TIPO ADESIONE IN VISITE CONFERMATE */}
+                            <div className="mt-1 mb-2">
+                              {p.tipo_adesione === 'Già Donatore' ? (
+                                <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
+                              ) : (
+                                <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">🌱 Aspirante</span>
+                              )}
+                            </div>
+
+                            <p className="text-xs text-slate-500 mb-1 mt-1">
+                              <strong>Nato:</strong> {p.data_nascita ? new Date(p.data_nascita).toLocaleDateString('it-IT') : 'N/D'}
+                              {p.sesso ? ` (${p.sesso})` : ''}
+                            </p>
+                            
                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ECG: {p.ha_fatto_ecg ? "Sì" : "No"}</span>
                             <p className="text-xs text-slate-500 mt-2 mb-2">{p.istituto}</p>
                             
@@ -675,9 +667,16 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
                                   <span>{c.nome} {c.cognome}</span>
+                                  
+                                  {/* AGGIUNTO SESSO E DATA DI NASCITA IN TUTTE LE TAB */}
+                                  <span className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                                    {c.data_nascita ? new Date(c.data_nascita).toLocaleDateString('it-IT') : 'Data N/D'}
+                                    {c.sesso ? ` • ${c.sesso}` : ''}
+                                  </span>
+
                                   {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
                                 </div>
-                                {/* BADGE CHIARO */}
+                                
                                 <div className="mt-1.5">
                                   {c.tipo_adesione === 'Già Donatore' ? (
                                     <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
@@ -772,7 +771,7 @@ export default function AdminDashboard() {
                 {(() => {
                    const candidato = candidature.find(c => c.id === editingId);
                    const idoneita = checkIdoneita(candidato!);
-                   const canSchedule = idoneita.abile; // Non blocco tutto se minorenne, blocco solo l'inserimento turni
+                   const canSchedule = idoneita.abile; 
                    const ricData = candidato?.data_ricontatto ? new Date(candidato.data_ricontatto) : null;
                    const isInPausa = !!(ricData && ricData > new Date()); 
 
