@@ -320,14 +320,14 @@ export default function AdminDashboard() {
           {vistaAttiva === "Turni Confermati" && (
             <div className="space-y-4 animate-in fade-in max-w-6xl mx-auto">
               {Object.entries(
-                turniConfermati.reduce((acc: any, c) => {
+                turniConfermati.reduce((acc: Record<string, Candidato[]>, c) => {
                   const data = c.data_disponibilita || "Data non impostata";
                   if (!acc[data]) acc[data] = [];
                   acc[data].push(c);
                   return acc;
-                }, {})
+                }, {} as Record<string, Candidato[]>)
               ).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
-              .map(([data, persone]: [any, Candidato[]]) => (
+              .map(([data, persone]) => (
                 <div key={data} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   <div onClick={() => setExpandedTurno(expandedTurno === data ? null : data)} className="bg-slate-50 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors">
                     <div className="flex items-center space-x-4">
@@ -477,3 +477,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
