@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import InstallPWA from './InstallPWA'; // Aggiunto import
 
 interface SidebarProps {
   vistaAttiva: string;
@@ -44,8 +45,11 @@ export default function Sidebar({ vistaAttiva, setVistaAttivo, emailAmministrato
           </button>
         ))}
       </nav>
+      
+      {/* SEZIONE INFERIORE (Logout e Installa App) */}
       <div className="p-4 border-t border-slate-800">
         <div className="text-center mb-3"><span className="text-[10px] text-slate-500 uppercase tracking-widest">{emailAmministratore}</span></div>
+        <InstallPWA /> 
         <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 p-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           <span>Disconnetti</span>
