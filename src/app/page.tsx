@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Home() {
   const [sezione, setSezione] = useState<number>(1);
@@ -65,19 +66,20 @@ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // --- NUOVI CONTROLLI DI VALIDAZIONE ---
+    // --- NUOVI CONTROLLI DI VALIDAZIONE ---
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    // Permette numeri da 9 a 15 cifre (supporta prefissi come +39 o numeri senza prefisso)
     const phoneRegex = /^[0-9+\s-]{9,15}$/;
 
     if (formData.email && formData.email !== "N/A" && !emailRegex.test(formData.email)) {
-      alert("Per favore, inserisci un indirizzo email valido.");
+      toast.error("Per favore, inserisci un indirizzo email valido."); // Modificato
       return;
     }
 
     if (formData.cellulare && formData.cellulare !== "N/A" && !phoneRegex.test(formData.cellulare)) {
-      alert("Per favore, inserisci un numero di cellulare valido (almeno 9 cifre, es: 3401234567).");
+      toast.error("Per favore, inserisci un numero di cellulare valido (almeno 9 cifre, es: 3401234567)."); // Modificato
       return;
     }
+    // --------------------------------------
     // --------------------------------------
 
     setLoading(true);
@@ -117,7 +119,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     }]);
 
     setLoading(false);
-    if (error) alert("C'è stato un errore: " + error.message);
+    if (error) toast.error("C'è stato un errore: " + error.message);;
     else setInviato(true);
   };
 
@@ -157,6 +159,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-200 py-10 px-4 font-sans text-gray-800 selection:bg-red-200">
+      <Toaster position="top-center" toastOptions={{ duration: 4000 }} /> {/* <-- Aggiunto qui */}
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border-t-8 border-red-600">
         
         <div className="p-8 md:p-10 border-b border-gray-100 bg-white">
