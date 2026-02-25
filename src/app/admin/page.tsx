@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const [annoAttivo, setAnnoAttivo] = useState<string>("Tutti");
   const [vistaAttiva, setVistaAttivo] = useState("Dashboard");
 
-  // Stati per la modifica veloce in Da Smistare
+  // Stati per la modifica veloce in Da Smistare/Pending
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState("");
   const [editNote, setEditNote] = useState("");
@@ -105,6 +105,14 @@ export default function AdminDashboard() {
     if (!error) fetchData();
   };
 
+  // NUOVA FUNZIONE: Eliminazione definitiva
+  const eliminaCandidato = async (id: string) => {
+    if(!confirm("ATTENZIONE: Azione irreversibile. Vuoi eliminare definitivamente questa persona dal database?")) return;
+    const { error } = await supabase.from('candidature').delete().eq('id', id);
+    if (!error) fetchData();
+    else alert("Errore durante l'eliminazione.");
+  };
+
   // --- LOGICA E CALCOLI ---
   const calcolaAnnoScolastico = (dataString: string) => {
     if (!dataString) return "Sconosciuto";
@@ -129,37 +137,42 @@ export default function AdminDashboard() {
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
-  // 1. DA SMISTARE: Tutti i "Sì" che NON sono confermati
+  // 1. DA SMISTARE: Solo i Da Valutare o Da Ricontattare (NON contattati per turni e NON confermati)
   const daSmistare = datiFiltratiAnno.filter(c => 
     (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore" || c.tipo_adesione === "SÌ" || c.tipo_adesione === "SI") && 
-    c.shift_status !== "Confermato"
+    (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
   ).sort((a, b) => {
-    if (a.shift_status === "Contattato" && b.shift_status !== "Contattato") return -1;
-    if (a.shift_status !== "Contattato" && b.shift_status === "Contattato") return 1;
     if (a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare") return -1;
     if (a.shift_status === "Da Ricontattare" && b.shift_status === "Da Valutare") return 1;
     return 0;
   });
 
-  // 2. TURNI CONFERMATI
-  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(a.data_disponibilita).getTime() - new Date(b.data_disponibilita).getTime());
+  // 2. PENDING: I Contattati (che attendono conferma per un turno)
+  const pending = datiFiltratiAnno.filter(c => 
+    (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore" || c.tipo_adesione === "SÌ" || c.tipo_adesione === "SI") && 
+    c.shift_status === "Contattato"
+  ).sort((a, b) => new Date(a.data_disponibilita).getTime() - new Date(b.data_disponibilita).getTime());
 
-  // 3. CI VOGLIO PENSARE
+  // 3. TURNI CONFERMATI: Ordinati dal più recente al meno recente (descendente)
+  const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita).getTime() - new Date(a.data_disponibilita).getTime());
+
+  // 4. CI VOGLIO PENSARE
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
 
-  // 4. ARCHIVIO: Mostra tutto (o volendo solo i NO)
+  // 5. ARCHIVIO
   const archivio = datiFiltratiAnno; 
 
   let datiMostrati: any[] = [];
   if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
+  if (vistaAttiva === "Pending") datiMostrati = pending;
   if (vistaAttiva === "Ci voglio pensare") datiMostrati = pensarci;
   if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
   const daValutareCount = daSmistare.filter(c => c.shift_status === "Da Valutare").length;
-  const contattatiCount = daSmistare.filter(c => c.shift_status === "Contattato").length;
+  const contattatiCount = pending.length;
   const daRicontattareCount = daSmistare.filter(c => c.shift_status === "Da Ricontattare").length;
   const confermatiCount = turniConfermati.length;
-  const totSì = daSmistare.length + confermatiCount;
+  const totSì = daSmistare.length + pending.length + confermatiCount;
 
   const getSlotDisponibili = () => {
     const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
@@ -188,7 +201,6 @@ export default function AdminDashboard() {
     return acc;
   }, {});
   const scuoleOrdinate = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
-
 
   // --- LOGIN ---
   if (!session) {
@@ -242,6 +254,7 @@ export default function AdminDashboard() {
          {[
             { nome: "Dashboard", icona: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
             { nome: "Da Smistare", badge: daSmistare.length, icona: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { nome: "Pending", badge: pending.length, icona: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" }, // Icona orologio per il pending
             { nome: "Turni Confermati", badge: turniConfermati.length, icona: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
             { nome: "Ci voglio pensare", badge: pensarci.length, icona: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
             { nome: "Archivio", badge: candidature.length, icona: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" }
@@ -325,7 +338,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex flex-col items-center w-1/4 px-2">
                       <div className="w-16 h-16 rounded-full bg-blue-50 border-4 border-blue-200 flex items-center justify-center text-xl font-black text-blue-600 mb-3 shadow-sm">{contattatiCount}</div>
-                      <span className="text-sm font-bold text-blue-700 text-center">Contattati</span>
+                      <span className="text-sm font-bold text-blue-700 text-center">Contattati / Pending</span>
                     </div>
                     <div className="flex flex-col items-center w-1/4 px-2">
                       <div className="w-16 h-16 rounded-full bg-green-50 border-4 border-green-200 flex items-center justify-center text-xl font-black text-green-600 mb-3 shadow-sm">{confermatiCount}</div>
@@ -367,13 +380,16 @@ export default function AdminDashboard() {
                   acc[data].push(c);
                   return acc;
                 }, {})
-              ).sort().map(([data, persone]: [any, any]) => (
+              )
+              // ORDINA DAL PIÙ RECENTE AL MENO RECENTE
+              .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+              .map(([data, persone]: [any, any]) => (
                 <div key={data} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   <div onClick={() => setExpandedTurno(expandedTurno === data ? null : data)} className="bg-slate-50 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors">
                     <div className="flex items-center space-x-4">
-                      <span className="text-2xl">{expandedTurno === data ? '📂' : '📁'}</span>
+                      <span className="text-2xl">{expandedTurno === data ? '📂' : '📅'}</span>
                       <div>
-                        <h3 className="font-bold text-slate-800 text-lg">{data !== "Data non impostata" ? new Date(data).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase() : data}</h3>
+                        <h3 className="font-bold text-slate-800 text-lg">{data !== "Data non impostata" ? new Date(data).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase() : data}</h3>
                         <p className="text-xs text-slate-500 font-medium">{data !== "Data non impostata" ? 'Ospedale di Feltre - Centro Trasfusionale' : 'Da organizzare'}</p>
                       </div>
                     </div>
@@ -388,7 +404,17 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {persone.map((p: any) => (
                           <div key={p.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative group hover:shadow-md transition-shadow">
-                            <p className="font-black text-slate-800">{p.nome} {p.cognome}</p>
+                            <p className="font-black text-slate-800 text-lg leading-tight">{p.nome} {p.cognome}</p>
+                            {/* AGGIUNTA DATA NASCITA ED ECG COME RICHIESTO */}
+                            <p className="text-xs text-slate-500 mb-1 mt-1">
+                              <strong>Nato il:</strong> {p.data_nascita ? new Date(p.data_nascita).toLocaleDateString('it-IT') : 'N/D'}
+                            </p>
+                            <div className="flex items-center mb-2">
+                              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                ECG: {p.ha_fatto_ecg ? "Sì" : "No"}
+                              </span>
+                            </div>
+                            
                             <p className="text-xs text-slate-500 mb-2">{p.istituto}</p>
                             <div className="flex items-center text-[11px] font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit mb-4">📱 {p.cellulare}</div>
                             <button onClick={(e) => { e.stopPropagation(); rimuoviDaTurno(p.id); }} className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200 transition-all flex items-center shadow-sm">
@@ -411,14 +437,14 @@ export default function AdminDashboard() {
                 <div className="p-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
                    <div className="text-5xl mb-4">📅</div>
                    <h3 className="text-xl font-bold text-slate-700">Nessun turno confermato</h3>
-                   <p className="text-slate-500 mt-2">I ragazzi che confermerai in "Da Smistare" appariranno qui.</p>
+                   <p className="text-slate-500 mt-2">I ragazzi che confermerai in "Da Smistare" o "Pending" appariranno qui.</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* VISTA TABELLE (Da Smistare, Ci Voglio Pensare, Archivio) */}
-          {["Da Smistare", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
+          {/* VISTA TABELLE (Da Smistare, Pending, Ci Voglio Pensare, Archivio) */}
+          {["Da Smistare", "Pending", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
               {datiMostrati.length === 0 ? (
                 <div className="p-16 text-center">
@@ -434,8 +460,10 @@ export default function AdminDashboard() {
                         <th className="p-4 font-bold pl-6">Data & Profilo</th>
                         <th className="p-4 font-bold">Contatti</th>
                         <th className="p-4 font-bold">Scuola & Medica</th>
-                        {vistaAttiva === "Da Smistare" && <th className="p-4 font-bold">Stato Turno</th>}
-                        <th className="p-4 font-bold pr-6 text-right">Azioni</th>
+                        {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && <th className="p-4 font-bold">Stato Turno</th>}
+                        {/* Se siamo in Archivio, rinominiamo l'header delle azioni o lo togliamo se si preferisce */}
+                        {vistaAttiva !== "Archivio" && <th className="p-4 font-bold pr-6 text-right">Azioni</th>}
+                        {vistaAttiva === "Archivio" && <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-sm">
@@ -468,8 +496,8 @@ export default function AdminDashboard() {
                               {c.ha_fatto_ecg !== null && <div className="text-[10px] bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded mr-1">ECG: <span className="font-bold">{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
                             </td>
 
-                            {/* Stato Turno (SOLO per Da Smistare) */}
-                            {vistaAttiva === "Da Smistare" && (
+                            {/* Stato Turno (Per Da Smistare e Pending) */}
+                            {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && (
                               <td className="p-4 align-top relative">
                                 {editingId === c.id ? (
                                   <div className="space-y-4 w-[280px] bg-white p-4 rounded-xl shadow-2xl border-2 border-red-500 absolute z-50 left-0 top-0">
@@ -526,6 +554,7 @@ export default function AdminDashboard() {
                                     <span className={`px-2.5 py-1 rounded-md font-bold text-xs border ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : c.shift_status === 'Contattato' ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                                       {c.shift_status === 'Da Valutare' ? '⏳ Da Valutare' : c.shift_status === 'Confermato' ? '✅ Confermato' : c.shift_status === 'Contattato' ? '📞 Contattato' : '🔄 Da Ricontattare'}
                                     </span>
+                                    {c.shift_status === 'Contattato' && c.data_disponibilita && <div className="text-xs text-blue-600 mt-2 font-bold flex items-center">In attesa per il: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
                                     {c.shift_status === 'Da Ricontattare' && c.data_disponibilita && <div className="text-xs text-red-600 mt-2 font-bold flex items-center">Riprovare dal: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
                                     {c.shift_status === 'Da Ricontattare' && c.note_ricontatto && <div className="text-[11px] text-slate-600 mt-1 leading-tight italic bg-yellow-50 p-1.5 rounded border border-yellow-100">"{c.note_ricontatto}"</div>}
                                   </div>
@@ -536,10 +565,10 @@ export default function AdminDashboard() {
                             {/* Azioni */}
                             <td className="p-4 pr-6 text-right align-top relative">
                               
-                              {/* Gestione per "Da Smistare" */}
-                              {vistaAttiva === "Da Smistare" && editingId !== c.id && (
+                              {/* Gestione per "Da Smistare" e "Pending" */}
+                              {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && editingId !== c.id && (
                                 <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); }} className="bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:border-red-300 hover:text-red-600 transition-colors">
-                                  Gestisci Turno
+                                  {vistaAttiva === "Pending" ? "Conferma Turno" : "Gestisci Turno"}
                                 </button>
                               )}
 
@@ -564,9 +593,16 @@ export default function AdminDashboard() {
                                 </>
                               )}
 
+                              {/* Eliminazione da Archivio */}
+                              {vistaAttiva === "Archivio" && (
+                                <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-red-600 hover:text-white transition-colors">
+                                  Elimina Definitivamente
+                                </button>
+                              )}
+
                               {/* Motivazione visualizzata per "Archivio" e "Ci voglio pensare" */}
                               {(vistaAttiva === "Ci voglio pensare" || vistaAttiva === "Archivio") && c.motivo_scelta && editingId !== c.id && (
-                                <div className="relative group/tooltip inline-block mt-2">
+                                <div className="relative group/tooltip inline-block mt-2 ml-2">
                                   <button className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 hover:bg-slate-200 cursor-help">Leggi Motivo</button>
                                   <div className="absolute hidden group-hover/tooltip:block z-50 right-0 mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl text-left whitespace-normal leading-relaxed before:content-[''] before:absolute before:top-[-6px] before:right-6 before:border-b-8 before:border-b-slate-800 before:border-x-8 before:border-x-transparent">
                                     {c.motivo_scelta}
