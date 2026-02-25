@@ -313,11 +313,12 @@ export default function Home() {
                 
                 <div>
                   <label className={labelStyle}>Sesso</label>
-                  <div className="flex space-x-6 mt-3">
+                  {/* MODIFICA: flex-wrap e gap ridotto per impedire tagli su schermi piccoli */}
+                  <div className="flex flex-wrap gap-3 mt-3">
                     {["Maschio", "Femmina", "Altro"].map((opzione) => (
-                      <label key={opzione} className={cardOptionStyle + " px-6"}>
+                      <label key={opzione} className={cardOptionStyle + " flex-1 min-w-[100px] justify-center"}>
                         <input type="radio" name="sei" value={opzione} onChange={(e) => setFormData({...formData, sei: e.target.value})} className="w-5 h-5 accent-red-600" />
-                        <span className="font-medium">{opzione}</span>
+                        <span className="font-medium text-sm sm:text-base">{opzione}</span>
                       </label>
                     ))}
                   </div>
