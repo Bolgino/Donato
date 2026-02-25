@@ -780,7 +780,10 @@ export default function AdminDashboard() {
                       {(() => {
                          const candidato = candidature.find(c => c.id === editingId);
                          const ricData = candidato?.data_ricontatto ? new Date(candidato.data_ricontatto) : null;
-                         const isInPausa = ricData && ricData > new Date();
+                         
+                         // Aggiunto !! per forzare il risultato a un boolean (true o false) ed evitare null
+                         const isInPausa = !!(ricData && ricData > new Date()); 
+                         
                          return (
                            <>
                              <option value="Contattato" disabled={isInPausa}>📞 Contattato {isInPausa ? '(In Pausa)' : ''}</option>
@@ -942,3 +945,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
