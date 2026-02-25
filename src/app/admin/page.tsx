@@ -245,6 +245,12 @@ export default function AdminDashboard() {
 
   // --- AZIONI DB ---
   const salvaModificheTurno = async (id: string) => {
+    // BLOCCO: Obbligo di inserire la data se lo stato è Contattato o Confermato
+    if ((editStatus === "Contattato" || editStatus === "Confermato") && !editData) {
+      toast.error("Devi obbligatoriamente selezionare una data per questo stato!");
+      return;
+    }
+
     const salvataggio = toast.loading("Salvataggio in corso...");
     const payload: any = { 
       shift_status: editStatus, 
@@ -254,7 +260,7 @@ export default function AdminDashboard() {
     if (editStatus === "Da Ricontattare") {
       payload.data_ricontatto = editDataRicontatto || null;
     } else {
-      payload.data_ricontatto = null; // Resetta se cambia status
+      payload.data_ricontatto = null; 
     }
 
     const { error } = await supabase.from('candidature').update(payload).eq('id', id);
@@ -364,16 +370,6 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-      <div className="relative mb-8">
-        <img src="/favicon.ico" alt="Loading" className="w-24 h-24 animate-bounce object-contain z-10 relative" />
-        <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
-      </div>
-      <h2 className="text-xl md:text-2xl font-bold text-slate-700 animate-pulse text-center px-4">{fraseLoading}</h2>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-red-200">
@@ -945,4 +941,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
