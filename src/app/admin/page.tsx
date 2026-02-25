@@ -5,12 +5,23 @@ import { Candidato } from "@/types/admin";
 import Sidebar from "@/components/admin/Sidebar";
 import toast from "react-hot-toast";
 
+// Dati estratti automaticamente dal tuo file Prof.csv
+const rubricaProf = [
+  { scuola: "Enaip", nome: "Claudia", cognome: "Sbardella", mail: "claudia.sbardella@enaip.veneto.it", cell: "" },
+  { scuola: "Colotti", nome: "Sara", cognome: "Buffolato", mail: "", cell: "3276783930" },
+  { scuola: "Rizzarda", nome: "Sara", cognome: "Buffolato", mail: "", cell: "3276783930" },
+  { scuola: "Liceo Dal Piaz", nome: "Maika", cognome: "Zanetto", mail: "", cell: "3477841869" },
+  { scuola: "Canossiane", nome: "Alex", cognome: "Berton", mail: "", cell: "3389294121" },
+  { scuola: "ITIS", nome: "Monica", cognome: "Guarrella", mail: "", cell: "3473311915" },
+  { scuola: "SERALE", nome: "Igino", cognome: "Parissenti", mail: "", cell: "3479648501" },
+  { scuola: "AGRARIA", nome: "Meletti", cognome: "", mail: "", cell: "3475429428" }
+];
+
 export default function AdminDashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<any>(null);
   
-  // Usiamo finalmente il tipo corretto invece di any
   const [candidature, setCandidature] = useState<Candidato[]>([]);
   
   const [loading, setLoading] = useState(true);
@@ -117,7 +128,6 @@ export default function AdminDashboard() {
     ));
   };
 
-  // FUNZIONE ELIMINA AGGIORNATA
   const eliminaCandidato = (id: string) => {
     toast((t) => (
       <div className="flex flex-col gap-3">
@@ -128,16 +138,13 @@ export default function AdminDashboard() {
             toast.dismiss(t.id);
             const loadToast = toast.loading("Eliminazione in corso...");
             
-            // 1. Aggiornamento ottimistico: rimuove dalla UI subito
             setCandidature(prev => prev.filter(c => c.id !== id));
             
-            // 2. Cancellazione da DB
             const { error } = await supabase.from('candidature').delete().eq('id', id);
             
             if (!error) { 
               toast.success("Candidato eliminato definitivamente!", { id: loadToast });
             } else { 
-              // Se fallisce (es. RLS Error), rimette l'utente nella UI e mostra l'errore
               fetchData();
               toast.error("Errore. Controlla le Policy Supabase (RLS): " + error.message, { id: loadToast });
             }
@@ -148,7 +155,6 @@ export default function AdminDashboard() {
     ), { duration: 6000 });
   };
 
-  // --- LOGICA E CALCOLI ---
   const calcolaAnnoScolastico = (dataString: string) => {
     if (!dataString) return "Sconosciuto";
     const d = new Date(dataString);
@@ -167,7 +173,6 @@ export default function AdminDashboard() {
     return { abile: !isMinorenne && !isSospeso, motivo: isMinorenne ? "MINORENNE" : (isSospeso ? "SOSPESO" : ""), color: isMinorenne || isSospeso ? "text-red-600" : "text-slate-800" };
   };
 
-  // --- FILTRI ---
   const anniSet = new Set(candidature.map(c => calcolaAnnoScolastico(c.created_at)));
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
@@ -225,7 +230,6 @@ export default function AdminDashboard() {
   }, {});
   const scuoleOrdinate = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
 
-  // --- RENDER LOGIN / LOADING ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 selection:bg-red-500">
@@ -248,8 +252,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-red-200">
-      
-      {/* Componente Sidebar Isolato */}
       <Sidebar 
         vistaAttiva={vistaAttiva} 
         setVistaAttivo={setVistaAttivo} 
@@ -264,23 +266,24 @@ export default function AdminDashboard() {
         }}
       />
 
-      {/* CONTENUTO PRINCIPALE */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white border-b border-slate-200 p-6 flex justify-between items-center z-10 shadow-sm">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-800">{vistaAttiva}</h2>
-            <p className="text-sm text-slate-500 font-medium">{vistaAttiva === "Turni Confermati" ? turniConfermati.length : datiMostrati.length} risposte</p>
+            {vistaAttiva !== "Rubrica Prof" && <p className="text-sm text-slate-500 font-medium">{vistaAttiva === "Turni Confermati" ? turniConfermati.length : datiMostrati.length} risposte</p>}
           </div>
-          <div className="flex items-center space-x-4">
-            <select value={annoAttivo} onChange={(e) => setAnnoAttivo(e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-2 font-bold outline-none cursor-pointer shadow-sm">
-              {anniDisponibili.map(anno => <option key={anno} value={anno}>{anno}</option>)}
-            </select>
-          </div>
+          {vistaAttiva !== "Rubrica Prof" && (
+            <div className="flex items-center space-x-4">
+              <select value={annoAttivo} onChange={(e) => setAnnoAttivo(e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-2 font-bold outline-none cursor-pointer shadow-sm">
+                {anniDisponibili.map(anno => <option key={anno} value={anno}>{anno}</option>)}
+              </select>
+            </div>
+          )}
         </header>
 
         <div className="flex-1 overflow-auto p-6 md:p-8">
           
-          {/* DASHBOARD COMPONENT */}
+          {/* DASHBOARD CON ALBERO E GRAFICI */}
           {vistaAttiva === "Dashboard" && (
             <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -298,7 +301,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* L'ALBERO / FUNNEL È TORNATO! */}
+              {/* L'Albero / Funnel */}
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hidden md:block">
                 <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento Turni</h3>
                 <div className="flex flex-col items-center">
@@ -507,10 +510,49 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* LA NUOVA RUBRICA PROFESSORI */}
+          {vistaAttiva === "Rubrica Prof" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in max-w-6xl mx-auto">
+              {rubricaProf.map((prof, i) => (
+                <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center font-black text-xl border border-red-100">
+                      {prof.nome ? prof.nome[0] : prof.scuola[0]}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-lg leading-tight">{prof.nome} {prof.cognome}</h3>
+                      <span className="text-xs font-bold text-red-600 uppercase tracking-wider">{prof.scuola}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3 mt-4 pt-4 border-t border-slate-100">
+                    {prof.cell ? (
+                      <a href={`tel:${prof.cell}`} className="flex items-center space-x-3 text-slate-600 hover:text-red-600 transition-colors bg-slate-50 p-2 rounded-lg">
+                        <span className="text-lg">📱</span> <span className="font-bold text-sm tracking-wide">{prof.cell}</span>
+                      </a>
+                    ) : (
+                      <div className="flex items-center space-x-3 text-slate-400 bg-slate-50 p-2 rounded-lg opacity-60">
+                        <span className="text-lg">📱</span> <span className="text-sm font-medium">Nessun cellulare</span>
+                      </div>
+                    )}
+                    
+                    {prof.mail ? (
+                      <a href={`mailto:${prof.mail}`} className="flex items-center space-x-3 text-slate-600 hover:text-red-600 transition-colors bg-slate-50 p-2 rounded-lg">
+                        <span className="text-lg">✉️</span> <span className="font-bold text-sm truncate">{prof.mail}</span>
+                      </a>
+                    ) : (
+                      <div className="flex items-center space-x-3 text-slate-400 bg-slate-50 p-2 rounded-lg opacity-60">
+                        <span className="text-lg">✉️</span> <span className="text-sm font-medium">Nessuna email</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
       </main>
     </div>
   );
 }
-
-
