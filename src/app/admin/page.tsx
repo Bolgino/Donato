@@ -130,13 +130,15 @@ export default function AdminDashboard() {
   const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita || "").getTime() - new Date(a.data_disponibilita || "").getTime());
   
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
-  const archivio = datiFiltratiAnno; 
+  const rifiutati = datiFiltratiAnno.filter(c => c.tipo_adesione === "NO");
+  const archivio = datiFiltratiAnno;
 
   let datiMostrati: Candidato[] = [];
   if (vistaAttiva === "In Gestione") datiMostrati = inGestione;
   if (vistaAttiva === "Già Donatori") datiMostrati = giaDonatori;
   if (vistaAttiva === "Pending") datiMostrati = pending;
   if (vistaAttiva === "Ci voglio pensare") datiMostrati = pensarci;
+  if (vistaAttiva === "Rifiutati (No)") datiMostrati = rifiutati;
   if (vistaAttiva === "Archivio") datiMostrati = archivio;
 
   // Avviso giornaliero in Gestione (Deve stare sotto a inGestione)
@@ -327,8 +329,8 @@ export default function AdminDashboard() {
         vistaAttiva={vistaAttiva} setVistaAttivo={setVistaAttivo} 
         emailAmministratore={session.user.email} handleLogout={handleLogout}
         isMobileOpen={isSidebarOpen} setIsMobileOpen={setIsSidebarOpen}
-        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, archivio: candidature.length }}
-      />
+        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, rifiutati: rifiutati.length, archivio: candidature.length }}
+        />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white border-b border-slate-200 p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center z-10 shadow-sm gap-4">
@@ -720,3 +722,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
