@@ -66,17 +66,16 @@ export default function Home() {
     setLoading(true);
 
     const istitutoFinale = formData.istituto === "Altro" ? formData.istitutoAltro : formData.istituto;
-    const seiFinale = formData.sei === "Altro" ? formData.seiAltro : formData.sei;
+    const sessoFinale = formData.sei === "Altro" ? formData.seiAltro : formData.sei;
     
     let motiviFinaliList = [...motiviSelezionati];
     if (motiviFinaliList.includes("Altro") && formData.motivo_sceltaAltro) {
       motiviFinaliList = motiviFinaliList.filter(m => m !== "Altro");
       motiviFinaliList.push(formData.motivo_sceltaAltro);
     }
-    const motiviUniti = motiviFinaliList.join(", ");
+    const questionarioFinale = motiviFinaliList.join(", ");
 
     const adesioneDb = tipoAdesione === "Sì_Nuovo" ? "Aspirante" : tipoAdesione === "Sì_Donatore" ? "Già Donatore" : tipoAdesione === "Pensarci" ? "Voglio pensarci" : "No";
-    const questionarioFinale = [motiviUniti, seiFinale].filter(Boolean).join(" | Sei: ");
 
     let ecgBooleano = null;
     if (formData.ha_fatto_ecg === "Sì") ecgBooleano = true;
@@ -86,6 +85,7 @@ export default function Home() {
       tipo_adesione: adesioneDb,
       nome: formData.nome || "N/A",
       cognome: formData.cognome || "N/A",
+      sesso: sessoFinale || null,
       classe: formData.classe,
       istituto: istitutoFinale,
       data_nascita: formData.data_nascita || null,
@@ -93,7 +93,7 @@ export default function Home() {
       cellulare: formData.cellulare || "N/A",
       email: formData.email || "N/A",
       data_ultima_donazione: formData.data_ultima_donazione || null,
-      motivo_scelta: questionarioFinale, 
+      motivo_scelta: questionarioFinale || null, 
       note: formData.note,
       consenso_privacy: formData.consenso_privacy,
       consenso_multimediale: formData.consenso_multimediale
@@ -122,6 +122,21 @@ export default function Home() {
   const labelStyle = "block mb-2 text-sm font-semibold text-gray-600 uppercase tracking-wide";
   const cardOptionStyle = "flex items-center space-x-3 cursor-pointer p-3 rounded-xl border border-gray-100 hover:bg-red-50 hover:border-red-200 transition-all duration-200 shadow-sm hover:shadow-md bg-white";
   const maxDate = new Date().toISOString().split('T')[0];
+
+  const bloccoSesso = (
+    <div>
+      <label className={labelStyle}>Sesso *</label>
+      <div className="flex flex-wrap gap-3 mt-3">
+        {["Maschio", "Femmina", "Altro"].map((opzione) => (
+          <label key={opzione} className={cardOptionStyle + " flex-1 min-w-[100px] justify-center"}>
+            <input type="radio" name="sei" value={opzione} required onChange={(e) => setFormData({...formData, sei: e.target.value})} className="w-5 h-5 accent-red-600" />
+            <span className="font-medium text-sm sm:text-base">{opzione}</span>
+          </label>
+        ))}
+      </div>
+      {formData.sei === "Altro" && <input type="text" placeholder="Specifica..." onChange={(e) => setFormData({...formData, seiAltro: e.target.value})} className={`mt-4 ${inputStyle}`} />}
+    </div>
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-200 py-10 px-4 font-sans text-gray-800 selection:bg-red-200">
@@ -175,6 +190,9 @@ export default function Home() {
                 <div><label className={labelStyle}>Nome *</label><input type="text" required onChange={(e) => setFormData({...formData, nome: e.target.value})} className={inputStyle} /></div>
                 <div><label className={labelStyle}>Cognome *</label><input type="text" required onChange={(e) => setFormData({...formData, cognome: e.target.value})} className={inputStyle} /></div>
                 
+                {bloccoSesso}
+                <div><label className={labelStyle}>Data di nascita *</label><input type="date" required max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
+
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Istituto *</label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
@@ -190,10 +208,7 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* RIMOSSO REQUIRED DALLA CLASSE */}
                 <div><label className={labelStyle}>Classe</label><input type="text" placeholder="Es: 5A" onChange={(e) => setFormData({...formData, classe: e.target.value})} className={inputStyle} /></div>
-                {/* AGGIUNTO MAX ALLA DATA DI NASCITA */}
-                <div><label className={labelStyle}>Data di nascita *</label><input type="date" required max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
                 
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Hai fatto da meno di 2 anni l'ECG (elettrocardiogramma)?</label>
@@ -220,6 +235,9 @@ export default function Home() {
                 <div><label className={labelStyle}>Nome *</label><input type="text" required onChange={(e) => setFormData({...formData, nome: e.target.value})} className={inputStyle} /></div>
                 <div><label className={labelStyle}>Cognome *</label><input type="text" required onChange={(e) => setFormData({...formData, cognome: e.target.value})} className={inputStyle} /></div>
                 
+                {bloccoSesso}
+                <div><label className={labelStyle}>Data di nascita *</label><input type="date" required max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
+
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Ultima donazione/visita di idoneità *</label>
                   <p className="text-xs text-gray-500 mb-3">(Ricorda: puoi donare dopo 3 mesi dall'ultima donazione e dopo 1 mese dalla prima visita)</p>
@@ -257,7 +275,9 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
                 <div><label className={labelStyle}>Nome *</label><input type="text" required onChange={(e) => setFormData({...formData, nome: e.target.value})} className={inputStyle} /></div>
                 <div><label className={labelStyle}>Cognome *</label><input type="text" required onChange={(e) => setFormData({...formData, cognome: e.target.value})} className={inputStyle} /></div>
-                <div><label className={labelStyle}>Quando sei nato?</label><input type="date" max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
+                
+                {bloccoSesso}
+                <div><label className={labelStyle}>Quando sei nato?</label><input type="date" required max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
                 
                 <div className="md:col-span-2">
                   <label className={labelStyle}>Istituto *</label>
@@ -279,7 +299,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* SEZIONE 5: Questionario NO / Pensarci */}
           {(sezione === 4 || sezione === 5) && (
             <div className="space-y-8 mt-10 pt-10 border-t border-gray-200 animate-in fade-in slide-in-from-right-8 duration-500 delay-150">
               <div className="bg-slate-100 p-5 rounded-2xl">
@@ -288,6 +307,16 @@ export default function Home() {
               </div>
               
               <div className="space-y-8">
+                
+                {sezione === 5 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8 border-b border-gray-200 pb-8">
+                    <div><label className={labelStyle}>Nome (Opzionale ma utile)</label><input type="text" onChange={(e) => setFormData({...formData, nome: e.target.value})} className={inputStyle} /></div>
+                    <div><label className={labelStyle}>Cognome (Opzionale)</label><input type="text" onChange={(e) => setFormData({...formData, cognome: e.target.value})} className={inputStyle} /></div>
+                    {bloccoSesso}
+                    <div><label className={labelStyle}>Data di nascita (Opzionale)</label><input type="date" max={maxDate} onChange={(e) => setFormData({...formData, data_nascita: e.target.value})} className={inputStyle} /></div>
+                  </div>
+                )}
+
                 <div>
                   <label className={labelStyle}>Perché hai risposto NO / Voglio pensarci? *</label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
@@ -305,19 +334,6 @@ export default function Home() {
                   {motiviSelezionati.includes("Altro") && (
                     <input type="text" required placeholder="Scrivi il motivo..." onChange={(e) => setFormData({...formData, motivo_sceltaAltro: e.target.value})} className={`mt-4 ${inputStyle}`} />
                   )}
-                </div>
-                
-                <div>
-                  <label className={labelStyle}>Sesso</label>
-                  <div className="flex flex-wrap gap-3 mt-3">
-                    {["Maschio", "Femmina", "Altro"].map((opzione) => (
-                      <label key={opzione} className={cardOptionStyle + " flex-1 min-w-[100px] justify-center"}>
-                        <input type="radio" name="sei" value={opzione} onChange={(e) => setFormData({...formData, sei: e.target.value})} className="w-5 h-5 accent-red-600" />
-                        <span className="font-medium text-sm sm:text-base">{opzione}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {formData.sei === "Altro" && <input type="text" placeholder="Specifica..." onChange={(e) => setFormData({...formData, seiAltro: e.target.value})} className={`mt-4 ${inputStyle}`} />}
                 </div>
 
                 {sezione === 5 && (
@@ -338,7 +354,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* BLOCCO PRIVACY, MULTIMEDIALE E INVIO */}
           {sezione !== 1 && (
             <div className="mt-10 pt-8 border-t border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
               
