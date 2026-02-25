@@ -6,25 +6,50 @@ export default function InstallPWA() {
   const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
+    // 1. Controllo immediato: L'app è già installata e in esecuzione come app?
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    
+    // Se è già un'app, non facciamo nulla e il bottone resterà nascosto.
+    if (isStandalone) {
+      setIsInstallable(false);
+      return;
+    }
+
+    // 2. Se siamo nel browser, ci mettiamo in ascolto dell'evento di installazione
     const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setIsInstallable(true);
+      e.preventDefault(); // Impedisce al browser di mostrare il suo mini-banner automatico
+      setDeferredPrompt(e); // Salviamo l'evento per usarlo quando si clicca il bottone
+      setIsInstallable(true); // Mostriamo il bottone!
     };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // 3. Ascoltiamo anche se l'utente la installa con successo in questa sessione
+    const handleAppInstalled = () => {
+      setIsInstallable(false); // Nascondiamo subito il bottone appena l'installazione finisce
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
+      // Mostriamo il prompt nativo del telefono (Google/Android/Chrome)
       deferredPrompt.prompt();
+      // Aspettiamo la scelta dell'utente
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setIsInstallable(false);
+      if (outcome === 'accepted') {
+        setIsInstallable(false); // L'ha installata, nascondiamo il bottone
+      }
       setDeferredPrompt(null);
     }
   };
 
-  // Se l'app è già installata o su iOS (che non supporta questo bottone) non mostriamo nulla
+  // Se non è installabile (o perché è già installata, o perché siamo su iPhone/Safari che blocca questo sistema)
   if (!isInstallable) return null;
 
   return (
