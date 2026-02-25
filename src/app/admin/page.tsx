@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { supabase } from "@/lib/supabase";
 import { Candidato, Professore } from "@/types/admin";
 import Sidebar from "@/components/admin/Sidebar";
@@ -116,17 +116,30 @@ export default function AdminDashboard() {
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
+ // IN GESTIONE includerà i nuovi iscritti, quelli da ricontattare e ORA ANCHE gli "In Attesa" (compresi gli ex già donatori)
   const inGestione = datiFiltratiAnno.filter(c => 
-    (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "SI" || c.tipo_adesione === "SÌ") && 
-    (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
-  ).sort((a, b) => a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare" ? -1 : 1);
+    c.shift_status === "In Attesa" || 
+    (
+      (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "SI" || c.tipo_adesione === "SÌ") && 
+      (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
+    )
+  ).sort((a, b) => {
+    // Ordiniamo dando priorità agli In Attesa, poi Da Valutare, infine Da Ricontattare
+    if (a.shift_status === "In Attesa" && b.shift_status !== "In Attesa") return -1;
+    if (a.shift_status !== "In Attesa" && b.shift_status === "In Attesa") return 1;
+    if (a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare") return -1;
+    if (a.shift_status === "Da Ricontattare" && b.shift_status === "Da Valutare") return 1;
+    return 0;
+  });
 
+  // I GIA' DONATORI rimangono invariati
   const giaDonatori = datiFiltratiAnno.filter(c => 
     c.tipo_adesione === "Già Donatore" && 
     (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare" || !c.shift_status)
   ).sort((a, b) => a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare" ? -1 : 1);
 
-  const pending = datiFiltratiAnno.filter(c => c.shift_status === "Contattato" || c.shift_status === "In Attesa").sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
+  // PENDING ora conterrà SOLO i "Contattato"
+  const pending = datiFiltratiAnno.filter(c => c.shift_status === "Contattato").sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
   const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita || "").getTime() - new Date(a.data_disponibilita || "").getTime());
   
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
@@ -674,153 +687,168 @@ const esportaGoogleContatti = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
-                        {datiMostrati.map((c) => {
-                          const statoIdoneita = checkIdoneita(c);
-                          const dStatus = getDonatoreStatus(c.data_ultima_donazione);
-                          
-                          const dataCreazione = new Date(c.created_at);
-                          const unMeseFa = new Date();
-                          unMeseFa.setMonth(unMeseFa.getMonth() - 1);
-                          const eVecchioDiUnMese = vistaAttiva === "Ci voglio pensare" && dataCreazione < unMeseFa;
+                        {(() => {
+                          let currentGroupDate = "";
 
-                          const ricontattabileDa = c.data_ricontatto ? new Date(c.data_ricontatto) : null;
-                          const oggi = new Date();
-                          const ancoraInPausa = ricontattabileDa && ricontattabileDa > oggi;
+                          return datiMostrati.map((c) => {
+                            const statoIdoneita = checkIdoneita(c);
+                            const dStatus = getDonatoreStatus(c.data_ultima_donazione);
+                            
+                            const dataCreazione = new Date(c.created_at);
+                            const unMeseFa = new Date();
+                            unMeseFa.setMonth(unMeseFa.getMonth() - 1);
+                            const eVecchioDiUnMese = vistaAttiva === "Ci voglio pensare" && dataCreazione < unMeseFa;
 
-                          const isRicontattare = c.shift_status === 'Da Ricontattare';
-                          const shouldFade = isRicontattare && vistaAttiva === "In Gestione";
+                            const ricontattabileDa = c.data_ricontatto ? new Date(c.data_ricontatto) : null;
+                            const oggi = new Date();
+                            const ancoraInPausa = ricontattabileDa && ricontattabileDa > oggi;
 
-                          return (
-                            <tr key={c.id} className={`group ${shouldFade ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'} ${eVecchioDiUnMese ? 'bg-red-50/30' : ''}`}>
-                              
-                              {vistaAttiva === "In Gestione" && (
-                                <td className="p-4 text-center border-r border-slate-100 align-top pt-5">
-                                  <input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleSelection(c.id)} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
-                                </td>
-                              )}
+                            const isRicontattare = c.shift_status === 'Da Ricontattare';
+                            const shouldFade = isRicontattare && vistaAttiva === "In Gestione";
 
-                              <td className={`p-4 align-top ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>
-                                <div className={`text-xs font-medium mb-1 ${eVecchioDiUnMese ? 'text-red-600 font-bold px-1 bg-red-100 inline-block rounded' : 'text-slate-400'}`}>
-                                  {eVecchioDiUnMese && '⚠️ '} {dataCreazione.toLocaleDateString('it-IT')}
-                                </div>
-                                <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
-                                  <span>{c.nome} {c.cognome}</span>
+                            // LOGICA SEPARATORE DATA PER LA TABELLA PENDING
+                            const dataC = c.data_disponibilita || "Senza Data";
+                            const showHeader = vistaAttiva === "Pending" && dataC !== currentGroupDate;
+                            if (showHeader) currentGroupDate = dataC;
+
+                            return (
+                              <Fragment key={c.id}>
+                                {/* INTESTAZIONE DATA (mostrata solo in Pending quando cambia la data) */}
+                                {showHeader && (
+                                  <tr className="bg-blue-50/90 border-y border-blue-200 shadow-sm">
+                                    <td colSpan={5} className="px-6 py-3 font-black text-blue-800 text-xs tracking-wider uppercase">
+                                      📅 IN ATTESA PER: {dataC !== "Senza Data" ? new Date(dataC).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : "DATA DA DEFINIRE"}
+                                    </td>
+                                  </tr>
+                                )}
+
+                                <tr className={`group ${shouldFade ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'} ${eVecchioDiUnMese ? 'bg-red-50/30' : ''}`}>
                                   
-                                  <span className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                                    {c.data_nascita ? new Date(c.data_nascita).toLocaleDateString('it-IT') : 'Data N/D'}
-                                    {c.sesso ? ` • ${c.sesso}` : ''}
-                                  </span>
-
-                                  {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
-                                </div>
-                                
-                                <div className="mt-1.5 mb-1">
-                                  {c.tipo_adesione === 'Già Donatore' ? (
-                                    <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
-                                  ) : c.tipo_adesione === 'Aspirante' || c.tipo_adesione === 'SÌ' || c.tipo_adesione === 'SI' ? (
-                                    <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200">🌱 Aspirante</span>
-                                  ) : (
-                                    <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>
+                                  {vistaAttiva === "In Gestione" && (
+                                    <td className="p-4 text-center border-r border-slate-100 align-top pt-5">
+                                      <input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleSelection(c.id)} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
+                                    </td>
                                   )}
-                                </div>
 
-                                {/* SPUNTE CONSENSI IN ARCHIVIO */}
-                                {vistaAttiva === "Archivio" && (
-                                   <div className="mt-3 pt-2 border-t border-slate-100 flex flex-col space-y-1 text-[10px] text-slate-500 font-medium">
-                                     <span className="flex items-center gap-1">Privacy: {c.consenso_privacy ? '✅' : '❌'}</span>
-                                     <span className="flex items-center gap-1">Media: {c.consenso_multimediale ? '✅' : '❌'}</span>
-                                   </div>
-                                )}
-                              </td>
-
-                              <td className="p-4 align-top">
-                                <div className="mb-3 border-b border-slate-100 pb-2">
-                                  <div className="flex items-center space-x-2 text-slate-800 font-bold mb-1.5"><span className="text-base">📱</span> <span>{c.cellulare}</span></div>
-                                  <a href={`https://wa.me/39${c.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-green-100 inline-block transition-colors">WhatsApp</a>
-                                </div>
-                                <div>
-                                  <div className="flex items-center space-x-2 text-slate-600 text-xs mb-1.5 font-medium"><span className="text-base">✉️</span> <span className="truncate max-w-[150px]" title={c.email}>{c.email}</span></div>
-                                  <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}`} target="_blank" rel="noopener noreferrer" className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-slate-200 inline-block transition-colors">Gmail</a>
-                                </div>
-                              </td>
-
-                              <td className="p-4 align-top">
-                                <div className="font-bold text-slate-700">{c.istituto}</div>
-                                <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
-                                {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
-                                
-                                {/* MOSTRA LE NOTE E LE MOTIVAZIONI */}
-                                {(c.note || ((vistaAttiva === "Archivio" || vistaAttiva === "Ci voglio pensare") && c.motivo_scelta)) && (
-                                  <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
-                                    {c.motivo_scelta && (vistaAttiva === "Archivio" || vistaAttiva === "Ci voglio pensare") && (
-                                      <div className="text-[11px] text-slate-600"><strong>Motivazione:</strong> {c.motivo_scelta}</div>
-                                    )}
-                                    {c.note && (
-                                      <div className="text-[11px] text-slate-600 bg-slate-100/80 p-2 rounded italic border border-slate-200 break-words">" {c.note} "</div>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-
-                              {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare"].includes(vistaAttiva) && (
-                                <td className="p-4 align-top">
-                                  {editingId !== c.id && (
-                                    <div>
-                                      <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : (c.shift_status === 'Contattato' || c.shift_status === 'In Attesa') ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status || 'Da Valutare'}</span>
+                                  <td className={`p-4 align-top ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>
+                                    <div className={`text-xs font-medium mb-1 ${eVecchioDiUnMese ? 'text-red-600 font-bold px-1 bg-red-100 inline-block rounded' : 'text-slate-400'}`}>
+                                      {eVecchioDiUnMese && '⚠️ '} {dataCreazione.toLocaleDateString('it-IT')}
+                                    </div>
+                                    <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
+                                      <span>{c.nome} {c.cognome}</span>
                                       
-                                      {/* Mostra avvisi Già Donatori (<3 mesi o &gt;2 anni) */}
-                                      {vistaAttiva === 'Già Donatori' && c.data_ultima_donazione && (
-                                        <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2">
-                                           <span className="text-[10px] font-bold text-slate-500">Ultima Donazione: {new Date(c.data_ultima_donazione).toLocaleDateString('it-IT')}</span>
-                                           {dStatus.isRecent && <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded border border-red-200 inline-block w-fit">⚠️ Attesa 3 mesi</span>}
-                                           {dStatus.isOld && <span className="bg-orange-100 text-orange-700 text-[9px] px-2 py-0.5 rounded border border-orange-200 inline-block w-fit">🔄 Scaduto (&gt;2 anni)</span>}
-                                        </div>
-                                      )}
+                                      <span className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                                        {c.data_nascita ? new Date(c.data_nascita).toLocaleDateString('it-IT') : 'Data N/D'}
+                                        {c.sesso ? ` • ${c.sesso}` : ''}
+                                      </span>
 
-                                      {/* Scadenza pensaci o Data Disponibilità */}
-                                      {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Visita: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
-                                      {c.scadenza_risposta && <div className="text-[11px] text-red-500 mt-2 font-bold flex items-center">Risposta Entro: {new Date(c.scadenza_risposta).toLocaleDateString('it-IT')}</div>}
-                                      
-                                      {/* Mostra note di ricontatto ed eventuale data "A partire dal" */}
-                                      {c.shift_status === 'Da Ricontattare' && c.data_ricontatto && (
-                                        <div className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 mt-1.5 rounded inline-block font-bold">
-                                          A partire dal: {new Date(c.data_ricontatto).toLocaleDateString('it-IT')}
-                                        </div>
-                                      )}
-                                      {c.shift_status === 'Da Ricontattare' && c.note_ricontatto && (
-                                        <div className="text-[10px] text-slate-600 mt-1.5 italic border-l-2 border-yellow-400 pl-1.5">
-                                          Motivo: {c.note_ricontatto}
-                                        </div>
+                                      {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
+                                    </div>
+                                    
+                                    <div className="mt-1.5 mb-1">
+                                      {c.tipo_adesione === 'Già Donatore' ? (
+                                        <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
+                                      ) : c.tipo_adesione === 'Aspirante' || c.tipo_adesione === 'SÌ' || c.tipo_adesione === 'SI' ? (
+                                        <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200">🌱 Aspirante</span>
+                                      ) : (
+                                        <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>
                                       )}
                                     </div>
+
+                                    {vistaAttiva === "Archivio" && (
+                                       <div className="mt-3 pt-2 border-t border-slate-100 flex flex-col space-y-1 text-[10px] text-slate-500 font-medium">
+                                         <span className="flex items-center gap-1">Privacy: {c.consenso_privacy ? '✅' : '❌'}</span>
+                                         <span className="flex items-center gap-1">Media: {c.consenso_multimediale ? '✅' : '❌'}</span>
+                                       </div>
+                                    )}
+                                  </td>
+
+                                  <td className="p-4 align-top">
+                                    <div className="mb-3 border-b border-slate-100 pb-2">
+                                      <div className="flex items-center space-x-2 text-slate-800 font-bold mb-1.5"><span className="text-base">📱</span> <span>{c.cellulare}</span></div>
+                                      <a href={`https://wa.me/39${c.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-green-100 inline-block transition-colors">WhatsApp</a>
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center space-x-2 text-slate-600 text-xs mb-1.5 font-medium"><span className="text-base">✉️</span> <span className="truncate max-w-[150px]" title={c.email}>{c.email}</span></div>
+                                      <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}`} target="_blank" rel="noopener noreferrer" className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-slate-200 inline-block transition-colors">Gmail</a>
+                                    </div>
+                                  </td>
+
+                                  <td className="p-4 align-top">
+                                    <div className="font-bold text-slate-700">{c.istituto}</div>
+                                    <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
+                                    {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
+                                    
+                                    {(c.note || ((vistaAttiva === "Archivio" || vistaAttiva === "Ci voglio pensare") && c.motivo_scelta)) && (
+                                      <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
+                                        {c.motivo_scelta && (vistaAttiva === "Archivio" || vistaAttiva === "Ci voglio pensare") && (
+                                          <div className="text-[11px] text-slate-600"><strong>Motivazione:</strong> {c.motivo_scelta}</div>
+                                        )}
+                                        {c.note && (
+                                          <div className="text-[11px] text-slate-600 bg-slate-100/80 p-2 rounded italic border border-slate-200 break-words">" {c.note} "</div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare"].includes(vistaAttiva) && (
+                                    <td className="p-4 align-top">
+                                      {editingId !== c.id && (
+                                        <div>
+                                          <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : (c.shift_status === 'Contattato' || c.shift_status === 'In Attesa') ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status || 'Da Valutare'}</span>
+                                          
+                                          {vistaAttiva === 'Già Donatori' && c.data_ultima_donazione && (
+                                            <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2">
+                                               <span className="text-[10px] font-bold text-slate-500">Ultima Donazione: {new Date(c.data_ultima_donazione).toLocaleDateString('it-IT')}</span>
+                                               {dStatus.isRecent && <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded border border-red-200 inline-block w-fit">⚠️ Attesa 3 mesi</span>}
+                                               {dStatus.isOld && <span className="bg-orange-100 text-orange-700 text-[9px] px-2 py-0.5 rounded border border-orange-200 inline-block w-fit">🔄 Scaduto (&gt;2 anni)</span>}
+                                            </div>
+                                          )}
+
+                                          {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Visita: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
+                                          {c.scadenza_risposta && <div className="text-[11px] text-red-500 mt-2 font-bold flex items-center">Risposta Entro: {new Date(c.scadenza_risposta).toLocaleDateString('it-IT')}</div>}
+                                          
+                                          {c.shift_status === 'Da Ricontattare' && c.data_ricontatto && (
+                                            <div className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 mt-1.5 rounded inline-block font-bold">
+                                              A partire dal: {new Date(c.data_ricontatto).toLocaleDateString('it-IT')}
+                                            </div>
+                                          )}
+                                          {c.shift_status === 'Da Ricontattare' && c.note_ricontatto && (
+                                            <div className="text-[10px] text-slate-600 mt-1.5 italic border-l-2 border-yellow-400 pl-1.5">
+                                              Motivo: {c.note_ricontatto}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
                                   )}
-                                </td>
-                              )}
 
-                              <td className="p-4 pr-6 text-right align-top">
-                                {vistaAttiva === "In Gestione" && editingId !== c.id && (
-                                  <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); setEditDataRicontatto(c.data_ricontatto || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci Turno</button>
-                                )}
+                                  <td className="p-4 pr-6 text-right align-top">
+                                    {vistaAttiva === "In Gestione" && editingId !== c.id && (
+                                      <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); setEditDataRicontatto(c.data_ricontatto || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci Turno</button>
+                                    )}
 
-                                {vistaAttiva === "Pending" && editingId !== c.id && (
-                                   <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); setEditDataRicontatto(c.data_ricontatto || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Aggiorna</button>
-                                )}
+                                    {vistaAttiva === "Pending" && editingId !== c.id && (
+                                       <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); setEditDataRicontatto(c.data_ricontatto || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Aggiorna</button>
+                                    )}
 
-                                {vistaAttiva === "Già Donatori" && editingId !== c.id && (
-                                  <button onClick={() => { setEditingId(c.id); setAzioneDonatore(""); }} className="bg-blue-600 text-white border border-blue-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm whitespace-nowrap">Gestisci Donatore</button>
-                                )}
+                                    {vistaAttiva === "Già Donatori" && editingId !== c.id && (
+                                      <button onClick={() => { setEditingId(c.id); setAzioneDonatore(""); }} className="bg-blue-600 text-white border border-blue-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm whitespace-nowrap">Gestisci Donatore</button>
+                                    )}
 
-                                {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
-                                  <button onClick={() => { setEditingId(c.id); setAzionePensarci(""); setEditScadenzaPensarci(c.scadenza_risposta || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci</button>
-                                )}
+                                    {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
+                                      <button onClick={() => { setEditingId(c.id); setAzionePensarci(""); setEditScadenzaPensarci(c.scadenza_risposta || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci</button>
+                                    )}
 
-                                {vistaAttiva === "Archivio" && (
-                                  <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm">Elimina</button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
+                                    {vistaAttiva === "Archivio" && (
+                                      <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm">Elimina</button>
+                                    )}
+                                  </td>
+                                </tr>
+                              </Fragment>
+                            );
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -1015,5 +1043,6 @@ const esportaGoogleContatti = () => {
     </div>
   );
 }
+
 
 
