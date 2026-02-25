@@ -13,12 +13,14 @@ export default function AdminDashboard() {
   const [candidature, setCandidature] = useState<Candidato[]>([]);
   const [professori, setProfessori] = useState<Professore[]>([]);
   
+  // Loading con animazione originale (Logo rimbalzante)
   const [loading, setLoading] = useState(true);
+  const [fraseLoading, setFraseLoading] = useState("Verificando gli accessi...");
+  const frasiDivertenti = ["Organizzando i turni...", "Svegliando i vampiri...", "Smistando le candidature...", "Calcolando le statistiche...", "Preparando i lettini...", "Controllando l'emoglobina..."];
+
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [annoAttivo, setAnnoAttivo] = useState<string>("Tutti");
   const [vistaAttiva, setVistaAttivo] = useState("Dashboard");
-
-  // Stato per Sidebar Mobile
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -28,6 +30,9 @@ export default function AdminDashboard() {
   const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
 
   const [editingProf, setEditingProf] = useState<Partial<Professore> | null>(null);
+  
+  // Gestione selezioni per l'export dei contatti
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -41,20 +46,26 @@ export default function AdminDashboard() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Effetto per le frasi divertenti del caricamento
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading && session) {
+      let i = 0;
+      interval = setInterval(() => {
+        i = (i + 1) % frasiDivertenti.length;
+        setFraseLoading(frasiDivertenti[i]);
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [loading, session]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     const toastId = toast.loading("Accesso in corso...");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (error) { 
-      toast.error("Errore di accesso: " + error.message, { id: toastId }); 
-      setIsLoggingIn(false); 
-    } else { 
-      toast.success("Accesso effettuato!", { id: toastId });
-      setIsLoggingIn(false); 
-      fetchData(); 
-    }
+    if (error) { toast.error("Errore: " + error.message, { id: toastId }); setIsLoggingIn(false); } 
+    else { toast.success("Accesso effettuato!", { id: toastId }); setIsLoggingIn(false); fetchData(); }
   };
 
   const handleLogout = async () => {
@@ -79,110 +90,13 @@ export default function AdminDashboard() {
 
     if (!profRes.error) setProfessori(profRes.data || []);
 
-    setLoading(false);
-  };
-
-  // --- ESPORTAZIONE GOOGLE CONTATTI (CSV) ---
-  const esportaGoogleContatti = () => {
-    if (datiMostrati.length === 0) return toast.error("Nessun contatto da esportare.");
-    
-    const header = ["Given Name", "Family Name", "Phone 1 - Type", "Phone 1 - Value", "E-mail 1 - Type", "E-mail 1 - Value", "Organization 1 - Name", "Notes"].join(",");
-    const rows = datiMostrati.map(c => {
-       const nome = c.nome ? c.nome.replace(/"/g, '""') : "";
-       const cognome = c.cognome ? c.cognome.replace(/"/g, '""') : "";
-       const telefono = c.cellulare ? c.cellulare.replace(/\D/g,'') : "";
-       const email = c.email ? c.email.replace(/"/g, '""') : "";
-       const scuola = c.istituto ? c.istituto.replace(/"/g, '""') : "";
-       const classe = c.classe ? c.classe.replace(/"/g, '""') : "";
-       
-       return `"${nome}","${cognome}","Mobile","${telefono}","Home","${email}","${scuola}","Classe: ${classe} - Turno: ${c.shift_status}"`;
-    }).join("\n");
-    
-    const csvContent = "\uFEFF" + header + "\n" + rows; // BOM per corretta codifica UTF-8
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Donato_${vistaAttiva.replace(/\s+/g, '_')}_GoogleContatti.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Esportati ${datiMostrati.length} contatti!`);
-  };
-
-  const salvaModificheTurno = async (id: string) => {
-    const salvataggio = toast.loading("Salvataggio in corso...");
-    const { error } = await supabase.from('candidature').update({ shift_status: editStatus, note_ricontatto: editNote, data_disponibilita: editData || null }).eq('id', id);
-    if (!error) { toast.success("Turno aggiornato", { id: salvataggio }); setEditingId(null); fetchData(); } 
-    else toast.error("Errore: " + error.message, { id: salvataggio });
-  };
-
-  const impostaDaPensarci = async (id: string, scelta: 'SI' | 'NO') => {
-    const tipo = scelta === 'SI' ? 'Aspirante' : 'NO';
-    const status = 'Da Valutare';
-    const note = scelta === 'NO' ? 'Non interessato.' : 'Ha accettato dopo averci pensato.';
-    const { error } = await supabase.from('candidature').update({ tipo_adesione: tipo, shift_status: status, note_ricontatto: note }).eq('id', id);
-    if (!error) { toast.success("Scelta registrata!"); setEditingId(null); fetchData(); }
-  };
-
-  const rimuoviDaTurno = (id: string) => {
-    toast((t) => (
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-bold">Rimuovere dal turno?</p>
-        <div className="flex gap-2">
-          <button onClick={async () => { toast.dismiss(t.id);
-            const { error } = await supabase.from('candidature').update({ shift_status: 'Da Ricontattare', data_disponibilita: null, note_ricontatto: "Rimosso dal turno." }).eq('id', id);
-            if (!error) { toast.success("Rimosso con successo"); fetchData(); }
-          }} className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Sì, rimuovi</button>
-          <button onClick={() => toast.dismiss(t.id)} className="bg-slate-200 px-3 py-1 rounded text-xs font-bold">Annulla</button>
-        </div>
-      </div>
-    ));
-  };
-
-  const eliminaCandidato = (id: string) => {
-    toast((t) => (
-      <div className="flex flex-col gap-3">
-        <p className="font-bold text-slate-800 text-sm">Vuoi eliminare definitivamente questa persona?</p>
-        <p className="text-xs text-red-600 font-medium">Azione irreversibile. Verrà cancellata dal database.</p>
-        <div className="flex gap-2 mt-1">
-          <button onClick={async () => { toast.dismiss(t.id);
-            const loadToast = toast.loading("Eliminazione in corso...");
-            setCandidature(prev => prev.filter(c => c.id !== id));
-            const { error } = await supabase.from('candidature').delete().eq('id', id);
-            if (!error) toast.success("Eliminato definitivamente!", { id: loadToast });
-            else { fetchData(); toast.error("Errore (Esegui SQL Supabase): " + error.message, { id: loadToast }); }
-          }} className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md">Elimina Ora</button>
-          <button onClick={() => toast.dismiss(t.id)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-md text-xs font-bold border border-slate-200">Annulla</button>
-        </div>
-      </div>
-    ), { duration: 6000 });
-  };
-
-  // --- FUNZIONI RUBRICA PROF ---
-  const salvaProfessore = async () => {
-    if (!editingProf?.scuola) return toast.error("La scuola è obbligatoria");
-    const idToast = toast.loading("Salvataggio professore...");
-    if (editingProf.id) {
-      const { error } = await supabase.from('professori').update(editingProf).eq('id', editingProf.id);
-      if (!error) { toast.success("Aggiornato!", {id: idToast}); setEditingProf(null); fetchData(); } else toast.error(error.message, {id: idToast});
-    } else {
-      const { error } = await supabase.from('professori').insert([editingProf]);
-      if (!error) { toast.success("Aggiunto!", {id: idToast}); setEditingProf(null); fetchData(); } else toast.error(error.message, {id: idToast});
-    }
-  };
-
-  const eliminaProf = async (id: string) => {
-    if(!confirm("Vuoi davvero eliminare questo professore dalla rubrica?")) return;
-    const {error} = await supabase.from('professori').delete().eq('id', id);
-    if(!error) { toast.success("Professore rimosso"); fetchData(); }
+    setTimeout(() => setLoading(false), 1500); 
   };
 
   // --- LOGICA E CALCOLI ---
   const calcolaAnnoScolastico = (dataString: string) => {
     if (!dataString) return "Sconosciuto";
-    const d = new Date(dataString);
-    const year = d.getFullYear();
+    const d = new Date(dataString); const year = d.getFullYear();
     return d.getMonth() < 8 ? `${year - 1}-${year}` : `${year}-${year + 1}`;
   };
 
@@ -201,30 +115,42 @@ export default function AdminDashboard() {
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
 
-  const daSmistare = datiFiltratiAnno.filter(c => 
-    (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore" || c.tipo_adesione === "SÌ" || c.tipo_adesione === "SI") && 
+  // FILTRI AGGIORNATI
+  const inGestione = datiFiltratiAnno.filter(c => 
+    (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "SI" || c.tipo_adesione === "SÌ") && 
     (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
-  ).sort((a, b) => {
-    if (a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare") return -1;
-    if (a.shift_status === "Da Ricontattare" && b.shift_status === "Da Valutare") return 1;
-    return 0;
-  });
+  ).sort((a, b) => a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare" ? -1 : 1);
 
-  const pending = datiFiltratiAnno.filter(c => 
-    (c.tipo_adesione === "Aspirante" || c.tipo_adesione === "Già Donatore" || c.tipo_adesione === "SÌ" || c.tipo_adesione === "SI") && 
-    c.shift_status === "Contattato"
-  ).sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
+  const giaDonatori = datiFiltratiAnno.filter(c => 
+    c.tipo_adesione === "Già Donatore" && 
+    (c.shift_status === "Da Valutare" || c.shift_status === "Da Ricontattare")
+  ).sort((a, b) => a.shift_status === "Da Valutare" && b.shift_status === "Da Ricontattare" ? -1 : 1);
 
+  const pending = datiFiltratiAnno.filter(c => c.shift_status === "Contattato").sort((a, b) => new Date(a.data_disponibilita || "").getTime() - new Date(b.data_disponibilita || "").getTime());
   const turniConfermati = datiFiltratiAnno.filter(c => c.shift_status === "Confermato").sort((a, b) => new Date(b.data_disponibilita || "").getTime() - new Date(a.data_disponibilita || "").getTime());
-
+  
   const pensarci = datiFiltratiAnno.filter(c => c.tipo_adesione === "Voglio pensarci");
   const archivio = datiFiltratiAnno; 
 
   let datiMostrati: Candidato[] = [];
-  if (vistaAttiva === "Da Smistare") datiMostrati = daSmistare;
+  if (vistaAttiva === "In Gestione") datiMostrati = inGestione;
+  if (vistaAttiva === "Già Donatori") datiMostrati = giaDonatori;
   if (vistaAttiva === "Pending") datiMostrati = pending;
   if (vistaAttiva === "Ci voglio pensare") datiMostrati = pensarci;
   if (vistaAttiva === "Archivio") datiMostrati = archivio;
+
+  // Avviso giornaliero in Gestione (Deve stare sotto a inGestione)
+  useEffect(() => {
+    if (vistaAttiva === "In Gestione" && inGestione.length > 0) {
+      const lastAlert = localStorage.getItem("lastContactAlert");
+      const today = new Date().toDateString();
+      if (lastAlert !== today) {
+        toast.success(`Ci sono ${inGestione.length} nuovi iscritti, ricordati di esportarli in rubrica!`, { icon: '💡', duration: 6000 });
+        localStorage.setItem("lastContactAlert", today);
+      }
+    }
+    setSelectedContacts(new Set()); // Pulisce selezioni se cambi tab
+  }, [vistaAttiva, annoAttivo, inGestione.length]);
 
   const getSlotDisponibili = () => {
     const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
@@ -252,6 +178,122 @@ export default function AdminDashboard() {
   }, {});
   const scuoleOrdinate = Object.entries(statsScuole).sort((a, b) => b[1] - a[1]);
 
+  // Gestione selezioni Checkbox
+  const toggleSelection = (id: string) => {
+    const newSet = new Set(selectedContacts);
+    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
+    setSelectedContacts(newSet);
+  };
+  const toggleAll = () => {
+    if (selectedContacts.size === datiMostrati.length) setSelectedContacts(new Set());
+    else setSelectedContacts(new Set(datiMostrati.map(c => c.id)));
+  };
+
+  // --- ESPORTAZIONE GOOGLE CONTATTI (SOLO SELEZIONATI E SOLO IN GESTIONE) ---
+  const esportaGoogleContatti = () => {
+    const contattiDaEsportare = datiMostrati.filter(c => selectedContacts.has(c.id));
+    if (contattiDaEsportare.length === 0) return toast.error("Seleziona almeno una persona spuntando le caselle.");
+    
+    const header = ["Given Name", "Family Name", "Phone 1 - Type", "Phone 1 - Value", "E-mail 1 - Type", "E-mail 1 - Value", "Organization 1 - Name", "Notes"].join(",");
+    const rows = contattiDaEsportare.map(c => {
+       const nome = c.nome ? c.nome.replace(/"/g, '""') : "";
+       const cognome = c.cognome ? c.cognome.replace(/"/g, '""') : "";
+       const telefono = c.cellulare ? c.cellulare.replace(/\D/g,'') : "";
+       const email = c.email ? c.email.replace(/"/g, '""') : "";
+       const scuola = c.istituto ? c.istituto.replace(/"/g, '""') : "";
+       const classe = c.classe ? c.classe.replace(/"/g, '""') : "";
+       return `"${nome}","${cognome}","Mobile","${telefono}","Home","${email}","${scuola}","Classe: ${classe}"`;
+    }).join("\n");
+    
+    const csvContent = "\uFEFF" + header + "\n" + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Donato_Contatti_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Esportati ${contattiDaEsportare.length} contatti! Vai su Google Contatti -> Importa`);
+  };
+
+  // Azioni Database
+  const salvaModificheTurno = async (id: string) => {
+    const salvataggio = toast.loading("Salvataggio in corso...");
+    const { error } = await supabase.from('candidature').update({ shift_status: editStatus, note_ricontatto: editNote, data_disponibilita: editData || null }).eq('id', id);
+    if (!error) { toast.success("Turno aggiornato", { id: salvataggio }); setEditingId(null); fetchData(); } 
+    else toast.error("Errore: " + error.message, { id: salvataggio });
+  };
+
+  const impostaDaPensarci = async (id: string, scelta: 'SI' | 'NO') => {
+    const tipo = scelta === 'SI' ? 'Aspirante' : 'NO';
+    const status = 'Da Valutare';
+    const note = scelta === 'NO' ? 'Non interessato.' : 'Ha accettato dopo averci pensato.';
+    const { error } = await supabase.from('candidature').update({ tipo_adesione: tipo, shift_status: status, note_ricontatto: note }).eq('id', id);
+    if (!error) { toast.success("Scelta registrata!"); setEditingId(null); fetchData(); }
+  };
+
+  const rimuoviDaTurno = (id: string) => {
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-bold">Rimuovere dalla visita?</p>
+        <div className="flex gap-2">
+          <button onClick={async () => { toast.dismiss(t.id);
+            const { error } = await supabase.from('candidature').update({ shift_status: 'Da Ricontattare', data_disponibilita: null, note_ricontatto: "Rimosso dal turno." }).eq('id', id);
+            if (!error) { toast.success("Rimosso con successo"); fetchData(); }
+          }} className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">Sì, rimuovi</button>
+          <button onClick={() => toast.dismiss(t.id)} className="bg-slate-200 px-3 py-1 rounded text-xs font-bold">Annulla</button>
+        </div>
+      </div>
+    ));
+  };
+
+  const eliminaCandidato = (id: string) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <p className="font-bold text-slate-800 text-sm">Vuoi eliminare definitivamente questa persona?</p>
+        <div className="flex gap-2 mt-1">
+          <button onClick={async () => { toast.dismiss(t.id);
+            const loadToast = toast.loading("Eliminazione in corso...");
+            setCandidature(prev => prev.filter(c => c.id !== id));
+            const { error } = await supabase.from('candidature').delete().eq('id', id);
+            if (!error) toast.success("Eliminato definitivamente!", { id: loadToast });
+            else { fetchData(); toast.error("Errore di eliminazione.", { id: loadToast }); }
+          }} className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md">Elimina Ora</button>
+          <button onClick={() => toast.dismiss(t.id)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-md text-xs font-bold border border-slate-200">Annulla</button>
+        </div>
+      </div>
+    ), { duration: 6000 });
+  };
+
+  const salvaProfessore = async () => {
+    if (!editingProf?.scuola) return toast.error("La scuola è obbligatoria");
+    const idToast = toast.loading("Salvataggio professore...");
+    if (editingProf.id) {
+      const { error } = await supabase.from('professori').update(editingProf).eq('id', editingProf.id);
+      if (!error) { toast.success("Aggiornato!", {id: idToast}); setEditingProf(null); fetchData(); } else toast.error(error.message, {id: idToast});
+    } else {
+      const { error } = await supabase.from('professori').insert([editingProf]);
+      if (!error) { toast.success("Aggiunto!", {id: idToast}); setEditingProf(null); fetchData(); } else toast.error(error.message, {id: idToast});
+    }
+  };
+
+  const eliminaProf = async (id: string) => {
+    if(!confirm("Vuoi eliminare questo professore?")) return;
+    const {error} = await supabase.from('professori').delete().eq('id', id);
+    if(!error) { toast.success("Professore rimosso"); fetchData(); }
+  };
+
+  // Funzione Badge Archivio
+  const getBadgeArchivio = (tipo: string) => {
+    if (tipo === "SÌ" || tipo === "SI" || tipo === "Aspirante") return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Sì / Aspirante</span>;
+    if (tipo === "Già Donatore") return <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Già Donatore</span>;
+    if (tipo === "Voglio pensarci") return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ci Pensa</span>;
+    if (tipo === "NO") return <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">Rifiutato (No)</span>;
+    return null;
+  };
+
+  // --- RENDER LOGIN E LOADING ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 selection:bg-red-500 p-4">
@@ -268,7 +310,16 @@ export default function AdminDashboard() {
     );
   }
 
-  if (loading) return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50"><div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div></div>;
+  // CARICAMENTO CON LOGO CHE RIMBALZA
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="relative mb-8">
+        <img src="/favicon.ico" alt="Loading" className="w-24 h-24 animate-bounce object-contain z-10 relative" />
+        <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
+      </div>
+      <h2 className="text-xl md:text-2xl font-bold text-slate-700 animate-pulse text-center px-4">{fraseLoading}</h2>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-red-200">
@@ -276,37 +327,36 @@ export default function AdminDashboard() {
         vistaAttiva={vistaAttiva} setVistaAttivo={setVistaAttivo} 
         emailAmministratore={session.user.email} handleLogout={handleLogout}
         isMobileOpen={isSidebarOpen} setIsMobileOpen={setIsSidebarOpen}
-        conteggi={{ daSmistare: daSmistare.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, archivio: candidature.length }}
+        conteggi={{ inGestione: inGestione.length, giaDonatori: giaDonatori.length, pending: pending.length, confermati: turniConfermati.length, pensarci: pensarci.length, archivio: candidature.length }}
       />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* HEADER OTTIMIZZATO PER MOBILE */}
         <header className="bg-white border-b border-slate-200 p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center z-10 shadow-sm gap-4">
           <div className="flex justify-between items-center w-full md:w-auto">
             <div>
               <h2 className="text-xl md:text-2xl font-extrabold text-slate-800">{vistaAttiva}</h2>
-              {vistaAttiva !== "Rubrica Prof" && <p className="text-xs md:text-sm text-slate-500 font-medium">{vistaAttiva === "Turni Confermati" ? turniConfermati.length : datiMostrati.length} risposte</p>}
+              {vistaAttiva !== "Rubrica Prof" && <p className="text-xs md:text-sm text-slate-500 font-medium">{vistaAttiva === "Visite Confermate" ? turniConfermati.length : datiMostrati.length} risposte visualizzate</p>}
             </div>
-            {/* TASTO MENU HAMBURGER */}
             <button onClick={() => setIsSidebarOpen(true)} className="md:hidden bg-slate-100 p-2 rounded-lg text-slate-600 shadow-sm border border-slate-200">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
           </div>
           
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* TASTO ESPORTA CSV GOOGLE CONTATTI */}
-            {["Da Smistare", "Pending", "Turni Confermati", "Archivio"].includes(vistaAttiva) && (
-              <button onClick={esportaGoogleContatti} className="flex items-center bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-blue-100 transition-colors shadow-sm whitespace-nowrap">
+            {/* TASTO EXPORT SOLO IN GESTIONE */}
+            {vistaAttiva === "In Gestione" && (
+              <button onClick={esportaGoogleContatti} className="flex items-center bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-blue-100 transition-colors shadow-sm">
                 <span className="md:mr-2 text-base">📥</span>
-                <span className="hidden md:inline">Google Contatti (CSV)</span>
+                <span className="hidden md:inline">Esporta Selezionati (CSV)</span>
                 <span className="md:hidden">CSV</span>
               </button>
             )}
 
-            <button onClick={() => { toast.loading("Aggiornamento...", {duration:1000}); fetchData(); }} className="flex items-center bg-slate-100 text-slate-600 border border-slate-200 px-3 py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-slate-200 transition-colors shadow-sm whitespace-nowrap">
+            <button onClick={() => { toast.loading("Aggiornamento..."); fetchData(); }} className="flex items-center bg-slate-100 text-slate-600 border border-slate-200 px-3 py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-slate-200 transition-colors shadow-sm">
               <svg className="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
               <span className="hidden md:inline">Aggiorna</span>
             </button>
+            
             {vistaAttiva !== "Rubrica Prof" && (
               <select value={annoAttivo} onChange={(e) => setAnnoAttivo(e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-700 text-xs md:text-sm rounded-lg px-2 py-2 font-bold outline-none cursor-pointer shadow-sm w-full md:w-auto mt-2 md:mt-0">
                 {anniDisponibili.map(anno => <option key={anno} value={anno}>{anno}</option>)}
@@ -315,7 +365,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 md:p-8 relative">
+        <div className="flex-1 overflow-auto p-4 md:p-8 relative bg-slate-50">
           
           {vistaAttiva === "Dashboard" && (
             <div className="max-w-5xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4">
@@ -336,10 +386,10 @@ export default function AdminDashboard() {
 
               {/* L'Albero / Funnel */}
               <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 hidden md:block">
-                <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento Turni</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento</h3>
                 <div className="flex flex-col items-center">
                   <div className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold shadow-md z-10 w-64 text-center border-b-4 border-slate-900">
-                    Tutti i "Sì" ({daSmistare.length + pending.length + turniConfermati.length})
+                    Sì / Aspiranti ({daSmistare.length + pending.length + turniConfermati.length})
                   </div>
                   <div className="w-1 h-8 bg-slate-200"></div>
                   <div className="w-full max-w-3xl h-1 bg-slate-200 relative">
@@ -387,8 +437,14 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {vistaAttiva === "Turni Confermati" && (
+          {vistaAttiva === "Visite Confermate" && (
             <div className="space-y-4 animate-in fade-in max-w-6xl mx-auto">
+              {turniConfermati.length === 0 && (
+                <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="text-4xl mb-4">📭</div>
+                  <h3 className="text-lg font-bold text-slate-700">Non ci sono visite confermate.</h3>
+                </div>
+              )}
               {Object.entries(
                 turniConfermati.reduce((acc: Record<string, Candidato[]>, c) => {
                   const data = c.data_disponibilita || "Data non impostata";
@@ -422,13 +478,12 @@ export default function AdminDashboard() {
                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ECG: {p.ha_fatto_ecg ? "Sì" : "No"}</span>
                             <p className="text-xs text-slate-500 mt-2 mb-2">{p.istituto}</p>
                             
-                            {/* AZIONI RAPIDE CONTATTI */}
+                            {/* AZIONI RAPIDE CONTATTI: Solo WA e Mail */}
                             <div className="flex flex-col space-y-2 mt-2 mb-4 border-t border-slate-200 pt-2">
                               <span className="text-[12px] font-bold text-slate-700 flex items-center"><span className="mr-1 text-base">📱</span> {p.cellulare}</span>
-                              <div className="flex space-x-2">
-                                <a href={`https://wa.me/39${p.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded text-[10px] font-black uppercase flex-1 text-center hover:bg-green-200 transition-colors">WhatsApp</a>
-                                <a href={`tel:${p.cellulare.replace(/\D/g, '')}`} className="bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-[10px] font-black uppercase flex-1 text-center hover:bg-blue-200 transition-colors">Chiama</a>
-                              </div>
+                              <a href={`https://wa.me/39${p.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded text-[10px] font-black uppercase text-center hover:bg-green-200 transition-colors">WhatsApp</a>
+                              
+                              <span className="text-[12px] font-medium text-slate-600 truncate flex items-center mt-2" title={p.email}><span className="mr-1 text-base">✉️</span> {p.email}</span>
                             </div>
 
                             <button onClick={(e) => { e.stopPropagation(); rimuoviDaTurno(p.id); }} className="absolute top-3 right-3 bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-200">Rimuovi</button>
@@ -442,90 +497,110 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {["Da Smistare", "Pending", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
+          {["In Gestione", "Già Donatori", "Pending", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
-              <div className="overflow-x-auto min-h-[500px]">
-                <table className="w-full text-left border-collapse min-w-[700px]">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                      <th className="p-4 font-bold pl-6">Profilo</th>
-                      <th className="p-4 font-bold">Contatti Rapidi</th>
-                      <th className="p-4 font-bold">Scuola & Medica</th>
-                      {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && <th className="p-4 font-bold">Stato Turno</th>}
-                      {vistaAttiva !== "Archivio" ? <th className="p-4 font-bold pr-6 text-right">Azioni</th> : <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
-                    {datiMostrati.map((c) => {
-                      const statoIdoneita = checkIdoneita(c);
-                      return (
-                        <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'}`}>
-                          
-                          <td className="p-4 pl-6 align-top">
-                            <div className="text-xs text-slate-400 font-medium mb-1">{new Date(c.created_at).toLocaleDateString('it-IT')}</div>
-                            <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
-                              <span>{c.nome} {c.cognome}</span>
-                              {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
-                            </div>
-                            <div className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded mt-1 bg-slate-100 text-slate-600">{c.tipo_adesione}</div>
-                          </td>
+              {datiMostrati.length === 0 ? (
+                <div className="p-16 text-center">
+                  <div className="text-4xl mb-4">📭</div>
+                  <h3 className="text-lg font-bold text-slate-700">Non ci sono risposte in questa sezione.</h3>
+                  <p className="text-slate-500 text-sm mt-2">La lista è attualmente vuota.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto min-h-[500px]">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                        {/* HEADER CHECKBOX SOLO IN GESTIONE */}
+                        {vistaAttiva === "In Gestione" && (
+                          <th className="p-4 w-12 text-center border-r border-slate-100">
+                            <input type="checkbox" onChange={toggleAll} checked={selectedContacts.size === datiMostrati.length && datiMostrati.length > 0} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
+                          </th>
+                        )}
+                        <th className={`p-4 font-bold ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>Profilo</th>
+                        <th className="p-4 font-bold">Contatti</th>
+                        <th className="p-4 font-bold">Scuola & Medica</th>
+                        {["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && <th className="p-4 font-bold">Stato Turno</th>}
+                        {vistaAttiva !== "Archivio" ? <th className="p-4 font-bold pr-6 text-right">Azioni</th> : <th className="p-4 font-bold pr-6 text-right text-red-500">Zona Pericolo</th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {datiMostrati.map((c) => {
+                        const statoIdoneita = checkIdoneita(c);
+                        return (
+                          <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'}`}>
+                            
+                            {/* CHECKBOX RIGA SOLO IN GESTIONE */}
+                            {vistaAttiva === "In Gestione" && (
+                              <td className="p-4 text-center border-r border-slate-100 align-top pt-5">
+                                <input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleSelection(c.id)} className="w-4 h-4 accent-red-600 rounded cursor-pointer" />
+                              </td>
+                            )}
 
-                          {/* NUOVA CELLA CONTATTI OTTIMIZZATA */}
-                          <td className="p-4 align-top">
-                            <div className="mb-3 border-b border-slate-100 pb-2">
-                              <div className="flex items-center space-x-2 text-slate-800 font-bold mb-1.5"><span className="text-base">📱</span> <span>{c.cellulare}</span></div>
-                              <div className="flex space-x-2">
-                                <a href={`https://wa.me/39${c.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-green-100 flex-1 text-center transition-colors">WhatsApp</a>
-                                <a href={`tel:${c.cellulare.replace(/\D/g, '')}`} className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-blue-100 flex-1 text-center transition-colors">Chiama</a>
+                            <td className={`p-4 align-top ${vistaAttiva !== "In Gestione" ? "pl-6" : ""}`}>
+                              <div className="text-xs text-slate-400 font-medium mb-1">{new Date(c.created_at).toLocaleDateString('it-IT')}</div>
+                              <div className={`font-extrabold text-base flex flex-col items-start ${statoIdoneita.color}`}>
+                                <span>{c.nome} {c.cognome}</span>
+                                {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
                               </div>
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2 text-slate-600 text-xs mb-1.5 font-medium"><span className="text-base">✉️</span> <span className="truncate max-w-[150px]" title={c.email}>{c.email}</span></div>
-                              <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}`} target="_blank" rel="noopener noreferrer" className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-slate-200 inline-block transition-colors">Apri in Gmail</a>
-                            </div>
-                          </td>
+                              {/* BADGE ARCHIVIO/ALTRE TAB */}
+                              <div className="mt-1.5">
+                                {vistaAttiva === "Archivio" ? getBadgeArchivio(c.tipo_adesione) : <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>}
+                              </div>
+                            </td>
 
-                          <td className="p-4 align-top">
-                            <div className="font-bold text-slate-700">{c.istituto}</div>
-                            <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
-                            {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
-                          </td>
-
-                          {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && (
                             <td className="p-4 align-top">
-                              {editingId !== c.id && (
-                                <div>
-                                  <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : c.shift_status === 'Contattato' ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status}</span>
-                                  {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
-                                </div>
+                              <div className="mb-3 border-b border-slate-100 pb-2">
+                                <div className="flex items-center space-x-2 text-slate-800 font-bold mb-1.5"><span className="text-base">📱</span> <span>{c.cellulare}</span></div>
+                                <a href={`https://wa.me/39${c.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-green-100 inline-block transition-colors">WhatsApp</a>
+                              </div>
+                              <div>
+                                <div className="flex items-center space-x-2 text-slate-600 text-xs mb-1.5 font-medium"><span className="text-base">✉️</span> <span className="truncate max-w-[150px]" title={c.email}>{c.email}</span></div>
+                                <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}`} target="_blank" rel="noopener noreferrer" className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide hover:bg-slate-200 inline-block transition-colors">Gmail</a>
+                              </div>
+                            </td>
+
+                            <td className="p-4 align-top">
+                              <div className="font-bold text-slate-700">{c.istituto}</div>
+                              <div className="text-xs text-slate-500 mb-1">Classe: {c.classe || "-"}</div>
+                              {c.ha_fatto_ecg !== null && <div className="text-[10px] mt-1 bg-slate-100 border border-slate-200 text-slate-600 inline-block px-2 py-0.5 rounded font-bold">ECG: <span className={`${c.ha_fatto_ecg ? "text-green-600" : "text-red-600"}`}>{c.ha_fatto_ecg ? "Sì" : "No"}</span></div>}
+                            </td>
+
+                            {["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && (
+                              <td className="p-4 align-top">
+                                {editingId !== c.id && (
+                                  <div>
+                                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : c.shift_status === 'Contattato' ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status}</span>
+                                    {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
+                                  </div>
+                                )}
+                              </td>
+                            )}
+
+                            <td className="p-4 pr-6 text-right align-top">
+                              {["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && editingId !== c.id && (
+                                <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci</button>
+                              )}
+
+                              {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
+                                <button onClick={() => setEditingId(c.id)} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Esito Ricontatto</button>
+                              )}
+
+                              {vistaAttiva === "Archivio" && (
+                                <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm">Elimina</button>
                               )}
                             </td>
-                          )}
-
-                          <td className="p-4 pr-6 text-right align-top">
-                            {(vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && editingId !== c.id && (
-                              <button onClick={() => { setEditingId(c.id); setEditStatus(c.shift_status); setEditNote(c.note_ricontatto || ""); setEditData(c.data_disponibilita || ""); }} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Gestisci</button>
-                            )}
-
-                            {vistaAttiva === "Ci voglio pensare" && editingId !== c.id && (
-                              <button onClick={() => setEditingId(c.id)} className="bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold hover:border-red-300 hover:text-red-600 shadow-sm whitespace-nowrap">Esito Ricontatto</button>
-                            )}
-
-                            {vistaAttiva === "Archivio" && (
-                              <button onClick={() => eliminaCandidato(c.id)} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm">Elimina</button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
-          {/* MODALI RISOLTE PER MOBILE (Si aprono fisse a centro schermo invece di rompere la tabella) */}
-          {editingId && (vistaAttiva === "Da Smistare" || vistaAttiva === "Pending") && (
+          {/* MODALI (Turni / Ricontatto) */}
+          {editingId && ["In Gestione", "Già Donatori", "Pending"].includes(vistaAttiva) && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setEditingId(null)}>
               <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-red-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                 <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci Turno</h3>
@@ -549,8 +624,8 @@ export default function AdminDashboard() {
                   </>
                 ) : (<div className="bg-red-50 p-4 text-center text-sm text-red-600 font-bold rounded-lg border border-red-200">Azione bloccata: L'utente non è idoneo per i turni.</div>)}
                 <div className="flex space-x-3 pt-2">
-                  <button onClick={() => salvaModificheTurno(editingId)} disabled={!checkIdoneita(candidature.find(c => c.id === editingId)!).abile} className="flex-1 bg-red-600 text-white py-3 rounded-xl text-sm font-black shadow-lg disabled:opacity-30">SALVA</button>
-                  <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200">ANNULLA</button>
+                  <button onClick={() => salvaModificheTurno(editingId)} disabled={!checkIdoneita(candidature.find(c => c.id === editingId)!).abile} className="flex-1 bg-red-600 text-white py-3 rounded-xl text-sm font-black shadow-lg disabled:opacity-30 hover:bg-red-700">SALVA</button>
+                  <button onClick={() => setEditingId(null)} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">ANNULLA</button>
                 </div>
               </div>
             </div>
@@ -563,7 +638,7 @@ export default function AdminDashboard() {
                 <select onChange={(e) => { if(e.target.value) impostaDaPensarci(editingId, e.target.value as 'SI' | 'NO'); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-red-500 bg-slate-50">
                   <option value="">Seleziona...</option><option value="SI">✅ Accetta (Coda turni)</option><option value="NO">❌ Rifiuta</option>
                 </select>
-                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-bold border border-slate-200">Annulla</button>
+                <button onClick={() => setEditingId(null)} className="w-full bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">Annulla</button>
               </div>
             </div>
           )}
@@ -621,18 +696,15 @@ export default function AdminDashboard() {
                       {prof.cell ? (
                         <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
                           <span className="font-bold text-slate-700 text-sm tracking-wide">{prof.cell}</span>
-                          <div className="flex space-x-2">
-                            <a href={`https://wa.me/39${prof.cell.replace(/\D/g, '')}`} target="_blank" className="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-black uppercase hover:bg-green-200">WA</a>
-                            <a href={`tel:${prof.cell.replace(/\D/g, '')}`} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-black uppercase hover:bg-blue-200">Chiama</a>
-                          </div>
+                          <a href={`https://wa.me/39${prof.cell.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] font-black uppercase hover:bg-green-200">WhatsApp</a>
                         </div>
                       ) : (
                         <div className="text-xs text-slate-400 bg-slate-50 p-2.5 rounded-lg">Nessun cellulare</div>
                       )}
                       {prof.mail ? (
-                        <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${prof.mail}`} target="_blank" className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100 hover:bg-red-50 group transition-colors">
+                        <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${prof.mail}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100 hover:bg-red-50 group transition-colors">
                           <span className="font-bold text-slate-700 text-xs truncate mr-2 group-hover:text-red-600">{prof.mail}</span>
-                          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-black uppercase shrink-0 group-hover:bg-red-200">Gmail</span>
+                          <span className="bg-red-100 text-red-700 px-3 py-1 rounded text-[10px] font-black uppercase shrink-0 group-hover:bg-red-200">Gmail</span>
                         </a>
                       ) : (
                         <div className="text-xs text-slate-400 bg-slate-50 p-2.5 rounded-lg">Nessuna email</div>
