@@ -1,21 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Candidato } from "@/types/admin";
+import { Candidato, Professore } from "@/types/admin";
 import Sidebar from "@/components/admin/Sidebar";
 import toast from "react-hot-toast";
-
-// Dati estratti automaticamente dal tuo file Prof.csv
-const rubricaProf = [
-  { scuola: "Enaip", nome: "Claudia", cognome: "Sbardella", mail: "claudia.sbardella@enaip.veneto.it", cell: "" },
-  { scuola: "Colotti", nome: "Sara", cognome: "Buffolato", mail: "", cell: "3276783930" },
-  { scuola: "Rizzarda", nome: "Sara", cognome: "Buffolato", mail: "", cell: "3276783930" },
-  { scuola: "Liceo Dal Piaz", nome: "Maika", cognome: "Zanetto", mail: "", cell: "3477841869" },
-  { scuola: "Canossiane", nome: "Alex", cognome: "Berton", mail: "", cell: "3389294121" },
-  { scuola: "ITIS", nome: "Monica", cognome: "Guarrella", mail: "", cell: "3473311915" },
-  { scuola: "SERALE", nome: "Igino", cognome: "Parissenti", mail: "", cell: "3479648501" },
-  { scuola: "AGRARIA", nome: "Meletti", cognome: "", mail: "", cell: "3475429428" }
-];
 
 export default function AdminDashboard() {
   const [email, setEmail] = useState("");
@@ -23,6 +11,7 @@ export default function AdminDashboard() {
   const [session, setSession] = useState<any>(null);
   
   const [candidature, setCandidature] = useState<Candidato[]>([]);
+  const [professori, setProfessori] = useState<Professore[]>([]); // Stato per i professori
   
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -34,6 +23,9 @@ export default function AdminDashboard() {
   const [editNote, setEditNote] = useState("");
   const [editData, setEditData] = useState("");
   const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
+
+  // Stato per la gestione (Aggiunta/Modifica) dei Professori
+  const [editingProf, setEditingProf] = useState<Partial<Professore> | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,18 +60,26 @@ export default function AdminDashboard() {
     window.location.reload();
   };
 
+  // FETCH AGGIORNATO (Recupera Candidati + Professori)
   const fetchData = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('candidature').select('*').order('created_at', { ascending: true });
-    if (!error) {
-      setCandidature(data || []);
-      if (data && data.length > 0) {
-          const anni = Array.from(new Set(data.map(c => calcolaAnnoScolastico(c.created_at)))).sort().reverse();
-          if(anni.length > 0 && annoAttivo === "Tutti") setAnnoAttivo(anni[0]);
+    const [candRes, profRes] = await Promise.all([
+      supabase.from('candidature').select('*').order('created_at', { ascending: true }),
+      supabase.from('professori').select('*').order('scuola', { ascending: true })
+    ]);
+
+    if (!candRes.error) {
+      setCandidature(candRes.data || []);
+      if (candRes.data && candRes.data.length > 0 && annoAttivo === "Tutti") {
+          const anni = Array.from(new Set(candRes.data.map(c => calcolaAnnoScolastico(c.created_at)))).sort().reverse();
+          if(anni.length > 0) setAnnoAttivo(anni[0]);
       }
-    } else {
-      toast.error("Errore nel recupero dati");
-    }
+    } else toast.error("Errore candidature");
+
+    if (!profRes.error) {
+      setProfessori(profRes.data || []);
+    } else toast.error("Errore professori");
+
     setLoading(false);
   };
 
@@ -137,16 +137,15 @@ export default function AdminDashboard() {
           <button onClick={async () => {
             toast.dismiss(t.id);
             const loadToast = toast.loading("Eliminazione in corso...");
-            
             setCandidature(prev => prev.filter(c => c.id !== id));
             
             const { error } = await supabase.from('candidature').delete().eq('id', id);
             
             if (!error) { 
-              toast.success("Candidato eliminato definitivamente!", { id: loadToast });
+              toast.success("Eliminato definitivamente!", { id: loadToast });
             } else { 
               fetchData();
-              toast.error("Errore. Controlla le Policy Supabase (RLS): " + error.message, { id: loadToast });
+              toast.error("Errore (Controlla il comando SQL): " + error.message, { id: loadToast });
             }
           }} className="bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md">Elimina Ora</button>
           <button onClick={() => toast.dismiss(t.id)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-md text-xs font-bold border border-slate-200">Annulla</button>
@@ -155,6 +154,28 @@ export default function AdminDashboard() {
     ), { duration: 6000 });
   };
 
+  // --- FUNZIONI RUBRICA PROF ---
+  const salvaProfessore = async () => {
+    if (!editingProf?.scuola) return toast.error("La scuola è obbligatoria");
+    const idToast = toast.loading("Salvataggio professore...");
+    if (editingProf.id) {
+      const { error } = await supabase.from('professori').update(editingProf).eq('id', editingProf.id);
+      if (!error) { toast.success("Aggiornato!", {id: idToast}); setEditingProf(null); fetchData(); }
+      else toast.error(error.message, {id: idToast});
+    } else {
+      const { error } = await supabase.from('professori').insert([editingProf]);
+      if (!error) { toast.success("Aggiunto!", {id: idToast}); setEditingProf(null); fetchData(); }
+      else toast.error(error.message, {id: idToast});
+    }
+  };
+
+  const eliminaProf = async (id: string) => {
+    if(!confirm("Vuoi davvero eliminare questo professore dalla rubrica?")) return;
+    const {error} = await supabase.from('professori').delete().eq('id', id);
+    if(!error) { toast.success("Professore rimosso"); fetchData(); }
+  };
+
+  // --- LOGICA E CALCOLI ---
   const calcolaAnnoScolastico = (dataString: string) => {
     if (!dataString) return "Sconosciuto";
     const d = new Date(dataString);
@@ -272,18 +293,23 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-extrabold text-slate-800">{vistaAttiva}</h2>
             {vistaAttiva !== "Rubrica Prof" && <p className="text-sm text-slate-500 font-medium">{vistaAttiva === "Turni Confermati" ? turniConfermati.length : datiMostrati.length} risposte</p>}
           </div>
-          {vistaAttiva !== "Rubrica Prof" && (
-            <div className="flex items-center space-x-4">
+          
+          <div className="flex items-center space-x-4">
+            {/* TASTO AGGIORNA RIPRISTINATO */}
+            <button onClick={() => { toast("Aggiornamento..."); fetchData(); }} className="flex items-center bg-slate-100 text-slate-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors shadow-sm">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              Aggiorna
+            </button>
+            {vistaAttiva !== "Rubrica Prof" && (
               <select value={annoAttivo} onChange={(e) => setAnnoAttivo(e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-2 font-bold outline-none cursor-pointer shadow-sm">
                 {anniDisponibili.map(anno => <option key={anno} value={anno}>{anno}</option>)}
               </select>
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-6 md:p-8">
+        <div className="flex-1 overflow-auto p-6 md:p-8 relative">
           
-          {/* DASHBOARD CON ALBERO E GRAFICI */}
           {vistaAttiva === "Dashboard" && (
             <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -301,7 +327,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* L'Albero / Funnel */}
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hidden md:block">
                 <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center"><span className="bg-slate-100 p-2 rounded-lg mr-3">🌳</span> Flusso Smistamento Turni</h3>
                 <div className="flex flex-col items-center">
@@ -354,7 +379,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TURNI CONFERMATI */}
           {vistaAttiva === "Turni Confermati" && (
             <div className="space-y-4 animate-in fade-in max-w-6xl mx-auto">
               {Object.entries(
@@ -404,7 +428,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TABELLE: Da Smistare, Pending, Ci Voglio Pensare, Archivio */}
           {["Da Smistare", "Pending", "Ci voglio pensare", "Archivio"].includes(vistaAttiva) && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
               <div className="overflow-x-auto min-h-[500px]">
@@ -511,43 +534,75 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* LA NUOVA RUBRICA PROFESSORI */}
+          {/* RUBRICA PROFESSORI CON MODIFICA MANUALE */}
           {vistaAttiva === "Rubrica Prof" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in max-w-6xl mx-auto">
-              {rubricaProf.map((prof, i) => (
-                <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center font-black text-xl border border-red-100">
-                      {prof.nome ? prof.nome[0] : prof.scuola[0]}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-lg leading-tight">{prof.nome} {prof.cognome}</h3>
-                      <span className="text-xs font-bold text-red-600 uppercase tracking-wider">{prof.scuola}</span>
-                    </div>
+            <div className="animate-in fade-in max-w-6xl mx-auto space-y-6">
+              
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-slate-500 text-sm">Gestisci i contatti dei referenti scolastici.</p>
+                <button onClick={() => setEditingProf({ scuola: "", nome: "", cognome: "", mail: "", cell: "" })} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-red-700">
+                  + Nuovo Professore
+                </button>
+              </div>
+
+              {editingProf && (
+                <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-red-500 mb-6 relative">
+                  <h3 className="font-bold text-slate-800 mb-4">{editingProf.id ? "Modifica Professore" : "Aggiungi Professore"}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <input placeholder="Scuola *" value={editingProf.scuola || ""} onChange={(e) => setEditingProf({...editingProf, scuola: e.target.value})} className="border p-2 rounded outline-none focus:border-red-500" />
+                    <input placeholder="Nome" value={editingProf.nome || ""} onChange={(e) => setEditingProf({...editingProf, nome: e.target.value})} className="border p-2 rounded outline-none focus:border-red-500" />
+                    <input placeholder="Cognome" value={editingProf.cognome || ""} onChange={(e) => setEditingProf({...editingProf, cognome: e.target.value})} className="border p-2 rounded outline-none focus:border-red-500" />
+                    <input placeholder="Telefono" value={editingProf.cell || ""} onChange={(e) => setEditingProf({...editingProf, cell: e.target.value})} className="border p-2 rounded outline-none focus:border-red-500" />
+                    <input placeholder="Email" value={editingProf.mail || ""} onChange={(e) => setEditingProf({...editingProf, mail: e.target.value})} className="border p-2 rounded outline-none focus:border-red-500" />
                   </div>
-                  <div className="space-y-3 mt-4 pt-4 border-t border-slate-100">
-                    {prof.cell ? (
-                      <a href={`tel:${prof.cell}`} className="flex items-center space-x-3 text-slate-600 hover:text-red-600 transition-colors bg-slate-50 p-2 rounded-lg">
-                        <span className="text-lg">📱</span> <span className="font-bold text-sm tracking-wide">{prof.cell}</span>
-                      </a>
-                    ) : (
-                      <div className="flex items-center space-x-3 text-slate-400 bg-slate-50 p-2 rounded-lg opacity-60">
-                        <span className="text-lg">📱</span> <span className="text-sm font-medium">Nessun cellulare</span>
-                      </div>
-                    )}
-                    
-                    {prof.mail ? (
-                      <a href={`mailto:${prof.mail}`} className="flex items-center space-x-3 text-slate-600 hover:text-red-600 transition-colors bg-slate-50 p-2 rounded-lg">
-                        <span className="text-lg">✉️</span> <span className="font-bold text-sm truncate">{prof.mail}</span>
-                      </a>
-                    ) : (
-                      <div className="flex items-center space-x-3 text-slate-400 bg-slate-50 p-2 rounded-lg opacity-60">
-                        <span className="text-lg">✉️</span> <span className="text-sm font-medium">Nessuna email</span>
-                      </div>
-                    )}
+                  <div className="flex space-x-3 mt-4">
+                    <button onClick={salvaProfessore} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-red-700">Salva</button>
+                    <button onClick={() => setEditingProf(null)} className="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg font-bold hover:bg-slate-200">Annulla</button>
                   </div>
                 </div>
-              ))}
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {professori.map((prof) => (
+                  <div key={prof.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow relative group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center font-black text-xl border border-red-100">
+                          {prof.nome ? prof.nome[0] : prof.scuola[0]}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-800 text-lg leading-tight">{prof.nome} {prof.cognome}</h3>
+                          <span className="text-xs font-bold text-red-600 uppercase tracking-wider">{prof.scuola}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditingProf(prof)} className="text-blue-500 bg-blue-50 p-1.5 rounded hover:bg-blue-100 text-xs">✏️</button>
+                        <button onClick={() => eliminaProf(prof.id)} className="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-100 text-xs">🗑️</button>
+                      </div>
+                    </div>
+                    <div className="space-y-3 mt-4 pt-4 border-t border-slate-100">
+                      {prof.cell ? (
+                        <a href={`tel:${prof.cell}`} className="flex items-center space-x-3 text-slate-600 hover:text-red-600 transition-colors bg-slate-50 p-2 rounded-lg">
+                          <span className="text-lg">📱</span> <span className="font-bold text-sm tracking-wide">{prof.cell}</span>
+                        </a>
+                      ) : (
+                        <div className="flex items-center space-x-3 text-slate-400 bg-slate-50 p-2 rounded-lg opacity-60">
+                          <span className="text-lg">📱</span> <span className="text-sm font-medium">Nessun cellulare</span>
+                        </div>
+                      )}
+                      {prof.mail ? (
+                        <a href={`mailto:${prof.mail}`} className="flex items-center space-x-3 text-slate-600 hover:text-red-600 transition-colors bg-slate-50 p-2 rounded-lg">
+                          <span className="text-lg">✉️</span> <span className="font-bold text-sm truncate">{prof.mail}</span>
+                        </a>
+                      ) : (
+                        <div className="flex items-center space-x-3 text-slate-400 bg-slate-50 p-2 rounded-lg opacity-60">
+                          <span className="text-lg">✉️</span> <span className="text-sm font-medium">Nessuna email</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
