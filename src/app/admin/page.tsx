@@ -95,6 +95,23 @@ export default function AdminDashboard() {
     return { abile: !isMinorenne && !isSospeso, motivo: isMinorenne ? "MINORENNE" : (isSospeso ? "SOSPESO" : ""), color: isMinorenne || isSospeso ? "text-red-600" : "text-slate-800" };
   };
 
+  const getDonatoreStatus = (dataUltimaStr: string | null) => {
+    if (!dataUltimaStr) return { isRecent: false, isOld: false };
+    const dataUltima = new Date(dataUltimaStr);
+    const oggi = new Date();
+    
+    // Circa 3 mesi
+    const sblocco = new Date(dataUltima.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const isRecent = sblocco > oggi;
+
+    // Circa 2 anni
+    const dueAnniFa = new Date();
+    dueAnniFa.setFullYear(oggi.getFullYear() - 2);
+    const isOld = dataUltima < dueAnniFa;
+
+    return { isRecent, isOld };
+  };
+
   const anniSet = new Set(candidature.map(c => calcolaAnnoScolastico(c.created_at)));
   const anniDisponibili = ["Tutti", ...Array.from(anniSet)].sort().reverse();
   const datiFiltratiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter(c => calcolaAnnoScolastico(c.created_at) === annoAttivo);
@@ -251,10 +268,15 @@ export default function AdminDashboard() {
     } else if (azione === 'PENSARCI_PARTECIPA') {
       payload = { tipo_adesione: 'Aspirante', shift_status: 'In Attesa', scadenza_risposta: null };
     } else if (azione === 'PENSARCI_NO' || azione === 'DONATORE_NO') {
-      // FIX 400 ERROR: Sostituito 'NO' con 'No' in base alla restrizione del DB
       payload = { tipo_adesione: 'No', shift_status: 'Da Valutare', scadenza_risposta: null };
     } else if (azione === 'DONATORE_ATTESA') {
-      payload = { shift_status: 'In Attesa' };
+      const candidato = candidature.find(c => c.id === id);
+      const dStatus = getDonatoreStatus(candidato?.data_ultima_donazione || null);
+      if (dStatus.isOld) {
+        payload = { shift_status: 'In Attesa', tipo_adesione: 'Aspirante' }; // Diventa aspirante se > 2 anni
+      } else {
+        payload = { shift_status: 'In Attesa' };
+      }
     }
 
     const { error } = await supabase.from('candidature').update(payload).eq('id', id);
@@ -555,7 +577,6 @@ export default function AdminDashboard() {
                           <div key={p.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative group hover:shadow-md transition-shadow">
                             <p className="font-black text-slate-800 text-lg leading-tight">{p.nome} {p.cognome}</p>
                             
-                            {/* BADGE TIPO ADESIONE IN VISITE CONFERMATE */}
                             <div className="mt-1 mb-2">
                               {p.tipo_adesione === 'Già Donatore' ? (
                                 <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
@@ -572,13 +593,15 @@ export default function AdminDashboard() {
                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.ha_fatto_ecg ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>ECG: {p.ha_fatto_ecg ? "Sì" : "No"}</span>
                             <p className="text-xs text-slate-500 mt-2 mb-2">{p.istituto}</p>
                             
+                            {/* CONTATTI RIORDINATI QUI */}
                             <div className="flex flex-col space-y-2 mt-2 mb-4 border-t border-slate-200 pt-2">
                               <span className="text-[12px] font-bold text-slate-700 flex items-center"><span className="mr-1 text-base">📱</span> {p.cellulare}</span>
-                              <div className="flex space-x-2">
+                              <span className="text-[12px] font-medium text-slate-600 truncate flex items-center mt-1" title={p.email}><span className="mr-1 text-base">✉️</span> {p.email}</span>
+                              
+                              <div className="flex space-x-2 pt-1">
                                 <a href={`https://wa.me/39${p.cellulare.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded text-[10px] font-black uppercase text-center hover:bg-green-200 transition-colors">WhatsApp</a>
                                 {p.email && <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${p.email}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-slate-200 text-slate-700 border border-slate-300 px-2 py-1 rounded text-[10px] font-black uppercase text-center hover:bg-slate-300 transition-colors">Gmail</a>}
                               </div>
-                              <span className="text-[12px] font-medium text-slate-600 truncate flex items-center mt-2" title={p.email}><span className="mr-1 text-base">✉️</span> {p.email}</span>
                             </div>
 
                             <button onClick={(e) => { e.stopPropagation(); rimuoviDaTurno(p.id); }} className="absolute top-3 right-3 bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-200">Rimuovi</button>
@@ -645,14 +668,22 @@ export default function AdminDashboard() {
                       <tbody className="divide-y divide-slate-100 text-sm">
                         {datiMostrati.map((c) => {
                           const statoIdoneita = checkIdoneita(c);
+                          const dStatus = getDonatoreStatus(c.data_ultima_donazione);
                           
                           const dataCreazione = new Date(c.created_at);
                           const unMeseFa = new Date();
                           unMeseFa.setMonth(unMeseFa.getMonth() - 1);
                           const eVecchioDiUnMese = vistaAttiva === "Ci voglio pensare" && dataCreazione < unMeseFa;
 
+                          const ricontattabileDa = c.data_ricontatto ? new Date(c.data_ricontatto) : null;
+                          const oggi = new Date();
+                          const ancoraInPausa = ricontattabileDa && ricontattabileDa > oggi;
+
+                          const isRicontattare = c.shift_status === 'Da Ricontattare';
+                          const shouldFade = isRicontattare && vistaAttiva === "In Gestione";
+
                           return (
-                            <tr key={c.id} className={`group ${c.shift_status === 'Da Ricontattare' ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'} ${eVecchioDiUnMese ? 'bg-red-50/30' : ''}`}>
+                            <tr key={c.id} className={`group ${shouldFade ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50/50'} ${eVecchioDiUnMese ? 'bg-red-50/30' : ''}`}>
                               
                               {vistaAttiva === "In Gestione" && (
                                 <td className="p-4 text-center border-r border-slate-100 align-top pt-5">
@@ -675,7 +706,7 @@ export default function AdminDashboard() {
                                   {!statoIdoneita.abile && <span className="mt-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{statoIdoneita.motivo}</span>}
                                 </div>
                                 
-                                <div className="mt-1.5">
+                                <div className="mt-1.5 mb-1">
                                   {c.tipo_adesione === 'Già Donatore' ? (
                                     <span className="text-[10px] uppercase font-black tracking-wider inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200">🩸 Già Donatore</span>
                                   ) : c.tipo_adesione === 'Aspirante' || c.tipo_adesione === 'SÌ' || c.tipo_adesione === 'SI' ? (
@@ -684,6 +715,14 @@ export default function AdminDashboard() {
                                     <span className="text-[10px] uppercase font-bold tracking-wider inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600">{c.tipo_adesione}</span>
                                   )}
                                 </div>
+
+                                {/* SPUNTE CONSENSI IN ARCHIVIO */}
+                                {vistaAttiva === "Archivio" && (
+                                   <div className="mt-3 pt-2 border-t border-slate-100 flex flex-col space-y-1 text-[10px] text-slate-500 font-medium">
+                                     <span className="flex items-center gap-1">Privacy: {c.consenso_privacy ? '✅' : '❌'}</span>
+                                     <span className="flex items-center gap-1">Media: {c.consenso_multimediale ? '✅' : '❌'}</span>
+                                   </div>
+                                )}
                               </td>
 
                               <td className="p-4 align-top">
@@ -721,6 +760,15 @@ export default function AdminDashboard() {
                                     <div>
                                       <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block ${c.shift_status === 'Confermato' ? 'bg-green-50 text-green-700 border-green-200' : (c.shift_status === 'Contattato' || c.shift_status === 'In Attesa') ? 'bg-blue-50 text-blue-700 border-blue-200' : c.shift_status === 'Da Ricontattare' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.shift_status || 'Da Valutare'}</span>
                                       
+                                      {/* Mostra avvisi Già Donatori (<3 mesi o >2 anni) */}
+                                      {vistaAttiva === 'Già Donatori' && c.data_ultima_donazione && (
+                                        <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2">
+                                           <span className="text-[10px] font-bold text-slate-500">Ultima Donazione: {new Date(c.data_ultima_donazione).toLocaleDateString('it-IT')}</span>
+                                           {dStatus.isRecent && <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded border border-red-200 inline-block w-fit">⚠️ Attesa 3 mesi</span>}
+                                           {dStatus.isOld && <span className="bg-orange-100 text-orange-700 text-[9px] px-2 py-0.5 rounded border border-orange-200 inline-block w-fit">🔄 Scaduto (>2 anni)</span>}
+                                        </div>
+                                      )}
+
                                       {/* Scadenza pensaci o Data Disponibilità */}
                                       {c.data_disponibilita && <div className="text-[11px] text-slate-500 mt-2 font-bold flex items-center">Data Visita: {new Date(c.data_disponibilita).toLocaleDateString('it-IT')}</div>}
                                       {c.scadenza_risposta && <div className="text-[11px] text-red-500 mt-2 font-bold flex items-center">Risposta Entro: {new Date(c.scadenza_risposta).toLocaleDateString('it-IT')}</div>}
@@ -856,24 +904,31 @@ export default function AdminDashboard() {
           )}
 
           {/* MODALE (Già Donatori) */}
-          {editingId && vistaAttiva === "Già Donatori" && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => {setEditingId(null); setAzioneDonatore("");}}>
-              <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-blue-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-                <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci "Già Donatore"</h3>
-                <p className="text-xs text-slate-500 mb-2">Decidi come spostare l'utente dalle nuove iscrizioni ai listini operativi.</p>
-                <select value={azioneDonatore} onChange={(e) => setAzioneDonatore(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50">
-                  <option value="">-- Scegli azione --</option>
-                  <option value="DONATORE_ATTESA">⏳ Segna come Pending (da gestire)</option>
-                  <option value="DONATORE_NO">❌ Non possono / Segna come NO (Archivio)</option>
-                </select>
-                
-                <div className="flex space-x-3 pt-4 border-t border-slate-100">
-                  <button onClick={() => gestisciAdesioniSpeciali(editingId, azioneDonatore)} disabled={!azioneDonatore} className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-black shadow-lg disabled:opacity-40 hover:bg-blue-700">Conferma</button>
-                  <button onClick={() => {setEditingId(null); setAzioneDonatore("");}} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">Annulla</button>
+          {editingId && vistaAttiva === "Già Donatori" && (() => {
+             const candidatoEdit = candidature.find(c => c.id === editingId);
+             const statusD = getDonatoreStatus(candidatoEdit?.data_ultima_donazione || null);
+
+             return (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => {setEditingId(null); setAzioneDonatore("");}}>
+                <div className="bg-white p-6 rounded-2xl shadow-2xl border-2 border-blue-500 w-full max-w-sm space-y-4 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="font-black text-slate-800 text-lg border-b border-slate-100 pb-2">Gestisci "Già Donatore"</h3>
+                  <p className="text-xs text-slate-500 mb-2">Decidi come spostare l'utente dalle nuove iscrizioni ai listini operativi.</p>
+                  <select value={azioneDonatore} onChange={(e) => setAzioneDonatore(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50">
+                    <option value="">-- Scegli azione --</option>
+                    <option value="DONATORE_ATTESA" disabled={statusD.isRecent}>
+                      ⏳ Segna come Pending {statusD.isRecent ? '(Bloccato < 3 mesi)' : statusD.isOld ? '(Diventa Aspirante)' : ''}
+                    </option>
+                    <option value="DONATORE_NO">❌ Non possono / Segna come NO (Archivio)</option>
+                  </select>
+                  
+                  <div className="flex space-x-3 pt-4 border-t border-slate-100">
+                    <button onClick={() => gestisciAdesioniSpeciali(editingId, azioneDonatore)} disabled={!azioneDonatore} className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-black shadow-lg disabled:opacity-40 hover:bg-blue-700">Conferma</button>
+                    <button onClick={() => {setEditingId(null); setAzioneDonatore("");}} className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-200">Annulla</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+             );
+          })()}
 
           {/* RUBRICA PROFESSORI */}
           {vistaAttiva === "Rubrica Prof" && (
