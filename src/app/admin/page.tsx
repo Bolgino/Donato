@@ -165,17 +165,17 @@ export default function AdminDashboard() {
       const daEsportare = inGestione.filter(c => !c.esportato_csv);
 
       if (daEsportare.length > 0) {
-        const lastAlert = localStorage.getItem("lastContactAlert");
-        const today = new Date().toDateString();
-        // L'alert appare solo una volta al giorno, ma SOLO SE ci sono contatti non esportati
-        if (lastAlert !== today) {
-          toast.success(`Ci sono ${daEsportare.length} nuovi iscritti da esportare in rubrica!`, { icon: '💡', duration: 8000 });
-          localStorage.setItem("lastContactAlert", today);
-        }
+        // L'alert appare ogni volta che entri nella tab, ma gli diamo un 'id' 
+        // così se la pagina si ricarica non fa "spam" di notifiche multiple a schermo
+        toast.success(`Ci sono ${daEsportare.length} iscritti da esportare in rubrica!`, { 
+          icon: '📥', 
+          duration: 6000,
+          id: 'export-alert' 
+        });
       }
     }
     setSelectedContacts(new Set());
-  }, [vistaAttiva, annoAttivo, inGestione]); // Nota: dipendenza cambiata in 'inGestione' intero
+  }, [vistaAttiva, annoAttivo, inGestione.length]); // Dipendenza ottimizzata a inGestione.length
 
   const getSlotDisponibili = () => {
     const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
@@ -1061,6 +1061,7 @@ const esportaGoogleContatti = async () => { // <-- Aggiunto 'async'
     </div>
   );
 }
+
 
 
 
