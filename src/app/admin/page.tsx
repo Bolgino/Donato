@@ -159,14 +159,12 @@ export default function AdminDashboard() {
     return dataCreazione < unMeseFa;
   });
 
+  // 1. Gestisce l'avviso popup per i contatti da esportare
   useEffect(() => {
     if (vistaAttiva === "In Gestione") {
-      // Filtra l'array per trovare solo quelli NON ancora esportati
       const daEsportare = inGestione.filter(c => !c.esportato_csv);
 
       if (daEsportare.length > 0) {
-        // L'alert appare ogni volta che entri nella tab, ma gli diamo un 'id' 
-        // così se la pagina si ricarica non fa "spam" di notifiche multiple a schermo
         toast.success(`Ci sono ${daEsportare.length} iscritti da esportare in rubrica!`, { 
           icon: '📥', 
           duration: 6000,
@@ -174,8 +172,12 @@ export default function AdminDashboard() {
         });
       }
     }
+  }, [vistaAttiva, inGestione.length]); // Dipende solo dalla LUNGHEZZA della lista, non dall'array intero
+
+  // 2. Svuota le selezioni SOLO quando si cambia pagina o anno
+  useEffect(() => {
     setSelectedContacts(new Set());
-  }, [vistaAttiva, annoAttivo, inGestione.length]); // Dipendenza ottimizzata a inGestione.length
+  }, [vistaAttiva, annoAttivo]);
 
   const getSlotDisponibili = () => {
     const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
@@ -1061,6 +1063,7 @@ const esportaGoogleContatti = async () => { // <-- Aggiunto 'async'
     </div>
   );
 }
+
 
 
 
