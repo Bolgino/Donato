@@ -160,16 +160,22 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    if (vistaAttiva === "In Gestione" && inGestione.length > 0) {
-      const lastAlert = localStorage.getItem("lastContactAlert");
-      const today = new Date().toDateString();
-      if (lastAlert !== today) {
-        toast.success(`Ci sono ${inGestione.length} nuovi iscritti, ricordati di esportarli in rubrica!`, { icon: '💡', duration: 6000 });
-        localStorage.setItem("lastContactAlert", today);
+    if (vistaAttiva === "In Gestione") {
+      // Filtra l'array per trovare solo quelli NON ancora esportati
+      const daEsportare = inGestione.filter(c => !c.esportato_csv);
+
+      if (daEsportare.length > 0) {
+        const lastAlert = localStorage.getItem("lastContactAlert");
+        const today = new Date().toDateString();
+        // L'alert appare solo una volta al giorno, ma SOLO SE ci sono contatti non esportati
+        if (lastAlert !== today) {
+          toast.success(`Ci sono ${daEsportare.length} nuovi iscritti da esportare in rubrica!`, { icon: '💡', duration: 8000 });
+          localStorage.setItem("lastContactAlert", today);
+        }
       }
     }
     setSelectedContacts(new Set());
-  }, [vistaAttiva, annoAttivo, inGestione.length]);
+  }, [vistaAttiva, annoAttivo, inGestione]); // Nota: dipendenza cambiata in 'inGestione' intero
 
   const getSlotDisponibili = () => {
     const occupatiPerData = datiFiltratiAnno.reduce((acc: Record<string, number>, c) => {
@@ -213,39 +219,51 @@ export default function AdminDashboard() {
 
   const { storici, maxVal } = getStatisticheAnnualiPerScuola();
 
-const esportaGoogleContatti = () => {
-    const contattiDaEsportare = datiMostrati.filter(c => selectedContacts.has(c.id));
-    if (contattiDaEsportare.length === 0) return toast.error("Seleziona almeno una persona spuntando le caselle.");
+const esportaGoogleContatti = async () => { // <-- Aggiunto 'async'
+  const contattiDaEsportare = datiMostrati.filter(c => selectedContacts.has(c.id));
+  if (contattiDaEsportare.length === 0) return toast.error("Seleziona almeno una persona spuntando le caselle.");
 
-    // Intestazione ESATTA basata sul file di esempio
-    const header = "Name Prefix;First Name;Middle Name;Last Name;Name Suffix;Phonetic First Name;Phonetic Middle Name;Phonetic Last Name;Nickname;E-mail 1 - Label;E-mail 1 - Value;Phone 1 - Label;Phone 1 - Value;Address 1 - Label;Address 1 - Country;Address 1 - Street;Address 1 - Extended Address;Address 1 - City;Address 1 - Region;Address 1 - Postal Code;Address 1 - PO Box;Organization Name;Organization Title;Organization Department;Birthday;Event 1 - Label;Event 1 - Value;Relation 1 - Label;Relation 1 - Value;Website 1 - Label;Website 1 - Value;Custom Field 1 - Label;Custom Field 1 - Value;Notes;Labels";
-    
-    const rows = contattiDaEsportare.map(c => {
-       // Rimuoviamo i punti e virgola dai campi per evitare che "rompano" l'incolonnamento
-       const nome = c.nome ? c.nome.replace(/;/g, ' ') : "";
-       const cognome = c.cognome ? c.cognome.replace(/;/g, ' ') : "";
-       const telefono = c.cellulare ? c.cellulare.replace(/\D/g,'') : "";
-       const email = c.email ? c.email.replace(/;/g, ' ') : "";
-       const scuola = c.istituto ? c.istituto.replace(/;/g, ' ') : "";
-       const classe = c.classe ? c.classe.replace(/;/g, ' ') : "";
-       const note = `Scuola: ${scuola} - Classe: ${classe}`;
+  const header = "Name Prefix;First Name;Middle Name;Last Name;Name Suffix;Phonetic First Name;Phonetic Middle Name;Phonetic Last Name;Nickname;E-mail 1 - Label;E-mail 1 - Value;Phone 1 - Label;Phone 1 - Value;Address 1 - Label;Address 1 - Country;Address 1 - Street;Address 1 - Extended Address;Address 1 - City;Address 1 - Region;Address 1 - Postal Code;Address 1 - PO Box;Organization Name;Organization Title;Organization Department;Birthday;Event 1 - Label;Event 1 - Value;Relation 1 - Label;Relation 1 - Value;Website 1 - Label;Website 1 - Value;Custom Field 1 - Label;Custom Field 1 - Value;Notes;Labels";
+  
+  const rows = contattiDaEsportare.map(c => {
+     const nome = c.nome ? c.nome.replace(/;/g, ' ') : "";
+     const cognome = c.cognome ? c.cognome.replace(/;/g, ' ') : "";
+     const telefono = c.cellulare ? c.cellulare.replace(/\D/g,'') : "";
+     const email = c.email ? c.email.replace(/;/g, ' ') : "";
+     const scuola = c.istituto ? c.istituto.replace(/;/g, ' ') : "";
+     const classe = c.classe ? c.classe.replace(/;/g, ' ') : "";
+     const note = `Scuola: ${scuola} - Classe: ${classe}`;
 
-       // Ricostruiamo la riga inserendo i dati nei campi corretti separati da ;
-       return `;${nome};;${cognome};;;;;;;${email};;${telefono};;;;;;;;;;;;;;;;;;;;${note};`;
-    }).join("\r\n");
-    
-    // Aggiungiamo BOM per la corretta lettura in Excel
-    const csvContent = "\uFEFF" + header + "\r\n" + rows;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Donato_Contatti_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+     return `;${nome};;${cognome};;;;;;;${email};;${telefono};;;;;;;;;;;;;;;;;;;;${note};`;
+  }).join("\r\n");
+  
+  const csvContent = "\uFEFF" + header + "\r\n" + rows;
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Donato_Contatti_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // --- NUOVO CODICE SUPABASE ---
+  // Raccogliamo tutti gli ID delle persone appena esportate
+  const idsDaAggiornare = contattiDaEsportare.map(c => c.id);
+  
+  // Aggiorniamo Supabase settando esportato_csv a true per queste persone
+  const { error } = await supabase
+    .from('candidature')
+    .update({ esportato_csv: true })
+    .in('id', idsDaAggiornare);
+
+  if (!error) {
     toast.success(`Esportati ${contattiDaEsportare.length} contatti! Vai su Google Contatti -> Importa`);
-  };
+    fetchData(); // Ricarichiamo i dati in modo che sparisca l'avviso
+  } else {
+    toast.error("File scaricato, ma errore nell'aggiornamento di Supabase.");
+  }
+};
 
   const toggleSelection = (id: string) => {
     const newSet = new Set(selectedContacts);
@@ -1043,6 +1061,7 @@ const esportaGoogleContatti = () => {
     </div>
   );
 }
+
 
 
 
