@@ -21,6 +21,7 @@ export interface Candidato {
   note?: string | null;
   consenso_privacy?: boolean | null;
   consenso_multimediale?: boolean | null;
+  esportato_csv?: boolean;
 }
 
 export interface Professore {
