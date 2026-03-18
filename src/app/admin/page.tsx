@@ -266,7 +266,61 @@ const esportaGoogleContatti = async () => { // <-- Aggiunto 'async'
     toast.error("File scaricato, ma errore nell'aggiornamento di Supabase.");
   }
 };
+const esportaTuttoCSV = () => {
+    if (datiFiltratiAnno.length === 0) {
+      toast.error("Nessun dato da esportare per l'anno selezionato.");
+      return;
+    }
 
+    // Intestazioni delle colonne
+    const headers = [
+      "Data Iscrizione", "Nome", "Cognome", "Sesso", "Data Nascita",
+      "Cellulare", "Email", "Istituto", "Classe", "Adesione",
+      "Stato Smistamento", "Data Visita", "Motivo Scelta",
+      "Da Ricontattare Dal", "Note Ricontatto", "Note Generali",
+      "Ultima Donazione", "Ha Fatto ECG", "Privacy", "Media"
+    ].join(";");
+
+    // Creazione delle righe (usiamo i doppi apici per evitare che virgole nei testi rompano il file)
+    const rows = datiFiltratiAnno.map(c => {
+      return [
+        c.created_at ? new Date(c.created_at).toLocaleDateString('it-IT') : "",
+        c.nome || "",
+        c.cognome || "",
+        c.sesso || "",
+        c.data_nascita ? new Date(c.data_nascita).toLocaleDateString('it-IT') : "",
+        c.cellulare || "",
+        c.email || "",
+        c.istituto || "",
+        c.classe || "",
+        c.tipo_adesione || "",
+        c.shift_status || "",
+        c.data_disponibilita ? new Date(c.data_disponibilita).toLocaleDateString('it-IT') : "",
+        c.motivo_scelta || "",
+        c.data_ricontatto ? new Date(c.data_ricontatto).toLocaleDateString('it-IT') : "",
+        c.note_ricontatto || "",
+        c.note || "",
+        c.data_ultima_donazione ? new Date(c.data_ultima_donazione).toLocaleDateString('it-IT') : "",
+        c.ha_fatto_ecg !== null ? (c.ha_fatto_ecg ? "SI" : "NO") : "",
+        c.consenso_privacy ? "SI" : "NO",
+        c.consenso_multimediale ? "SI" : "NO"
+      ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(";");
+    }).join("\r\n");
+
+    // \uFEFF serve per far leggere correttamente le lettere accentate ad Excel
+    const csvContent = "\uFEFF" + headers + "\r\n" + rows; 
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    // Il nome del file cambierà dinamicamente in base all'anno selezionato (es. Archivio_Tutti_2024-05-10.csv)
+    link.setAttribute("download", `Archivio_${annoAttivo.replace("/", "-")}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`Esportati ${datiFiltratiAnno.length} record con successo!`);
+  };
   const toggleSelection = (id: string) => {
     const newSet = new Set(selectedContacts);
     if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
@@ -432,6 +486,15 @@ const esportaGoogleContatti = async () => { // <-- Aggiunto 'async'
                 <span className="md:mr-2 text-base">📥</span>
                 <span className="hidden md:inline">Esporta Selezionati (CSV)</span>
                 <span className="md:hidden">CSV</span>
+              </button>
+            )}
+
+            {/* NUOVO BOTTONE EXPORT GLOBALE */}
+            {vistaAttiva !== "Rubrica Prof" && (
+              <button onClick={esportaTuttoCSV} className="flex items-center bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-green-100 transition-colors shadow-sm">
+                <span className="md:mr-2 text-base">📊</span>
+                <span className="hidden md:inline">Esporta Archivio Completo</span>
+                <span className="md:hidden">Export</span>
               </button>
             )}
 
