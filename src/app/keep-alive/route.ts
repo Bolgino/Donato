@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; // Assicurati che il path sia corretto per il tuo progetto
 
-// Disabilita la cache per far funzionare sempre il Cron Job
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { data, error } = await supabase.from('donatori').select('id').limit(1);
+    // QUI ERA L'ERRORE: Ora interroga la tabella corretta "candidature"
+    const { data, error } = await supabase.from('candidature').select('*').limit(1);
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, message: 'Supabase è sveglio!', data });
+    return NextResponse.json({ status: 'success', message: 'Database svegliato con successo!' });
   } catch (error) {
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    console.error('Errore Keep-Alive:', error);
+    // Ho aggiunto il messaggio di errore nella risposta così se fallisce vedi subito il perché!
+    return NextResponse.json({ status: 'error', details: error }, { status: 500 });
   }
 }
