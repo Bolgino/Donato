@@ -1,17 +1,40 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase'; // Assicurati che il path sia corretto per il tuo progetto
+import { createClient } from '@supabase/supabase-js';
+
+// È fondamentale usare la SERVICE_ROLE_KEY per scavalcare le policy di sicurezza (RLS)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; 
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET() {
   try {
-    // QUI ERA L'ERRORE: Ora interroga la tabella corretta "candidature"
-    const { data, error } = await supabase.from('candidature').select('*').limit(1);
+    // 1. Inserisce un nuovo record
+    const { data: insertData, error: insertError } = await supabase
+      .from('keep_alive')
+      .insert([{ pinged_at: new Date().toISOString() }])
+      .select();
 
-    if (error) throw error;
+    if (insertError) throw insertError;
 
-    return NextResponse.json({ status: 'success', message: 'Database svegliato con successo!' });
-  } catch (error) {
-    console.error('Errore Keep-Alive:', error);
-    // Ho aggiunto il messaggio di errore nella risposta così se fallisce vedi subito il perché!
-    return NextResponse.json({ status: 'error', details: error }, { status: 500 });
+    // 2. Cancella il record appena creato
+    const { error: deleteError } = await supabase
+      .from('keep_alive')
+      .delete()
+      .eq('id', insertData[0].id);
+
+    if (deleteError) throw deleteError;
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Ping DB completato con operazioni di Read/Write' 
+    }, { status: 200 });
+
+  } catch (error: any) {
+    console.error('Errore Keep-Alive:', error.message);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 });
   }
 }
