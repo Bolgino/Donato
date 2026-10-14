@@ -19,7 +19,7 @@ export const VOCI_MENU: { id: Vista; nome: string; icona: string; descrizione: s
   { id: "pensano", nome: "Ci pensano", icona: "🤔", descrizione: "Hanno risposto \"Voglio pensarci\"", gruppo: "lavoro" },
   { id: "rubrica", nome: "Rubrica prof", icona: "👩‍🏫", descrizione: "Referenti delle scuole", gruppo: "strumenti" },
   { id: "archivio", nome: "Archivio", icona: "🗂", descrizione: "Tutte le risposte ed export Excel", gruppo: "strumenti" },
-  { id: "statistiche", nome: "Statistiche", icona: "📊", descrizione: "Numeri e scuole", gruppo: "strumenti" },
+  { id: "statistiche", nome: "Statistiche", icona: "📊", descrizione: "Accompagnati per anno e per scuola, risposte", gruppo: "strumenti" },
   { id: "guida", nome: "Guida", icona: "❓", descrizione: "Come funziona, passo per passo", gruppo: "strumenti" },
 ];
 

@@ -297,6 +297,50 @@ export function raggruppaTurni(tutti: Candidato[]): Turno[] {
 }
 
 // ============================================================
+// ACCOMPAGNATI (come il foglio "Rendimento annuale" dell'Excel)
+// Conta le persone CONFERMATE, per anno scolastico della data del turno.
+// ============================================================
+export interface AnnoAccompagnati {
+  anno: string;
+  /** Confermati con turno già passato (o oggi) */
+  fatti: number;
+  /** Confermati con turno ancora da fare */
+  inProgramma: number;
+  /** Risposte "sì" (aspiranti + già donatori) arrivate in quell'anno scolastico */
+  si: number;
+}
+
+export function annoScolasticoDi(iso: string): string {
+  const d = parseData(soloData(iso));
+  const y = d.getFullYear();
+  return d.getMonth() < 8 ? `${y - 1}-${y}` : `${y}-${y + 1}`;
+}
+
+export function accompagnati(tutti: Candidato[]) {
+  const oggi = oggiISO();
+  const perAnno: Record<string, AnnoAccompagnati> = {};
+  const perScuola: Record<string, Record<string, number>> = {};
+  const riga = (anno: string) => (perAnno[anno] = perAnno[anno] || { anno, fatti: 0, inProgramma: 0, si: 0 });
+
+  for (const c of tutti) {
+    if (c.shift_status === "Confermato" && c.data_disponibilita) {
+      const data = soloData(c.data_disponibilita);
+      const anno = annoScolasticoDi(data);
+      if (data <= oggi) riga(anno).fatti++;
+      else riga(anno).inProgramma++;
+      const scuola = c.istituto || "Non specificato";
+      perScuola[scuola] = perScuola[scuola] || {};
+      perScuola[scuola][anno] = (perScuola[scuola][anno] || 0) + 1;
+    }
+    if (isAspirante(c.tipo_adesione) || isGiaDonatore(c.tipo_adesione) || c.shift_status === "Contattato" || c.shift_status === "Confermato") {
+      riga(calcolaAnnoScolastico(c.created_at)).si++;
+    }
+  }
+  const anni = Object.keys(perAnno).sort().reverse();
+  return { anni, perAnno, perScuola };
+}
+
+// ============================================================
 // CONTATTI: WhatsApp, Gmail, appunti
 // ============================================================
 /** Restituisce il numero in formato internazionale per wa.me (es. 393401234567) o null se non valido */

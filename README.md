@@ -32,7 +32,7 @@ Web app per raccogliere le adesioni degli studenti alla donazione di sangue e or
 - **🤔 Ci pensano** – chi ha risposto "Voglio pensarci". Dopo un mese scrivigli, imposta una scadenza, poi *Vuole partecipare* (va in Da contattare) o *Non interessato* (va in archivio).
 - **👩‍🏫 Rubrica prof** – i referenti delle scuole. Scrivi il nome della scuola **uguale a quello del modulo** (te lo suggerisce): così l'avviso viene abbinato da solo.
 - **🗂 Archivio** – tutte le risposte (anche i "No"), export Excel per anno scolastico, eliminazione.
-- **📊 Statistiche** – numeri e risposte per scuola.
+- **📊 Statistiche** – **accompagnati per anno scolastico e per scuola** (come il foglio "Rendimento annuale" dell'Excel, calcolati sulle persone confermate: già andate + in programma, con la % sulle risposte "sì"), più le risposte per scuola.
 
 Toccando un nome si apre la **scheda della persona**: tutti i dati, il messaggio WhatsApp/email già pronto (si può scegliere quale) e i pulsanti per spostarla di fase (metti in turno, sposta, togli dal turno, da ricontattare, non partecipa, elimina).
 

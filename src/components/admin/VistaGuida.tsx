@@ -102,6 +102,10 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
         <Domanda d="Come salvo i numeri nella rubrica del telefono?">
           In Da contattare tocca <b>Seleziona i non salvati</b> → <b>Scarica file</b>. Poi apri contacts.google.com → Importa → scegli il file. Le persone esportate non compaiono più come &quot;non salvato&quot;.
         </Domanda>
+        <Domanda d="Quanti ragazzi abbiamo accompagnato quest'anno?">
+          In <Link v="statistiche">Statistiche</Link>, tabella <b>Accompagnati al trasfusionale</b>: per ogni anno scolastico conta le persone confermate (già andate e in programma) e
+          le divide anche per scuola, come il foglio &quot;Rendimento annuale&quot;. Chi viene tolto da un turno non viene contato.
+        </Domanda>
         <Domanda d="Posso cambiare il testo dei messaggi?">
           Sì: il messaggio si apre già scritto in WhatsApp/Gmail e puoi modificarlo prima di inviarlo. Nella scheda della persona puoi anche scegliere un altro messaggio pronto dal menu.
         </Domanda>

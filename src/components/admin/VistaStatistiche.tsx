@@ -1,7 +1,7 @@
 "use client";
 import { ReactNode } from "react";
 import { Candidato } from "@/types/admin";
-import { calcolaAnnoScolastico, faseDi } from "@/lib/donato";
+import { accompagnati, calcolaAnnoScolastico, faseDi } from "@/lib/donato";
 
 export default function VistaStatistiche({ dati, candidature, annoAttivo }: { dati: Candidato[]; candidature: Candidato[]; annoAttivo: string }) {
   const conta = (f: ReturnType<typeof faseDi>) => dati.filter((c) => faseDi(c) === f).length;
@@ -46,6 +46,13 @@ export default function VistaStatistiche({ dati, candidature, annoAttivo }: { da
     </div>
   );
 
+  // Accompagnati (sempre su tutti gli anni, come il foglio "Rendimento annuale")
+  const acc = accompagnati(candidature);
+  const scuoleAcc = Object.entries(acc.perScuola)
+    .map(([scuola, anni]) => ({ scuola, anni, totale: Object.values(anni).reduce((x, y) => x + y, 0) }))
+    .sort((x, y) => y.totale - x.totale);
+  const perc = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : "—");
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -76,6 +83,84 @@ export default function VistaStatistiche({ dati, candidature, annoAttivo }: { da
             <Cerchio n={daRicontattare} label="Da ricontattare" stile="bg-yellow-50 border-yellow-200 text-yellow-600" />
           </div>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+        <div>
+          <h3 className="text-lg font-bold text-slate-800">🩸 Accompagnati al trasfusionale</h3>
+          <p className="text-xs text-slate-500 mt-1">
+            Persone con turno <b>confermato</b>, divise per anno scolastico della data del turno (tutti gli anni, il filtro in alto non conta qui). &quot;In programma&quot; = confermati con il
+            turno ancora da fare.
+          </p>
+        </div>
+        {acc.anni.length === 0 ? (
+          <p className="text-sm text-slate-500">Nessun turno confermato per ora.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="px-2 py-2 sm:p-3 font-bold">Anno</th>
+                    <th className="px-2 py-2 sm:p-3 font-bold text-right">Accompagnati</th>
+                    <th className="px-2 py-2 sm:p-3 font-bold text-right whitespace-nowrap">In programma</th>
+                    <th className="px-2 py-2 sm:p-3 font-bold text-right">Totale</th>
+                    <th className="px-2 py-2 sm:p-3 font-bold text-right" title="Risposte sì (aspiranti + già donatori) arrivate in quell'anno">Risposte &quot;sì&quot;</th>
+                    <th className="px-2 py-2 sm:p-3 font-bold text-right" title="Totale confermati diviso risposte sì">% sui sì</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {acc.anni.map((anno) => {
+                    const r = acc.perAnno[anno];
+                    const tot = r.fatti + r.inProgramma;
+                    return (
+                      <tr key={anno}>
+                        <td className="px-2 py-2 sm:p-3 font-bold text-slate-800 whitespace-nowrap">{anno}</td>
+                        <td className="px-2 py-2 sm:p-3 text-right font-black text-red-600 text-base">{r.fatti}</td>
+                        <td className="px-2 py-2 sm:p-3 text-right text-slate-500">{r.inProgramma || "—"}</td>
+                        <td className="px-2 py-2 sm:p-3 text-right font-bold">{tot}</td>
+                        <td className="px-2 py-2 sm:p-3 text-right text-slate-600">{r.si}</td>
+                        <td className="px-2 py-2 sm:p-3 text-right text-slate-600">{perc(tot, r.si)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <p className="text-sm font-bold text-slate-700 mb-2">Per scuola (confermati, compresi quelli in programma)</p>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-2 py-2 sm:p-3 font-bold">Scuola</th>
+                      {acc.anni.map((a) => (
+                        <th key={a} className="px-2 py-2 sm:p-3 font-bold text-right whitespace-nowrap">
+                          {a}
+                        </th>
+                      ))}
+                      <th className="px-2 py-2 sm:p-3 font-bold text-right">Totale</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {scuoleAcc.map(({ scuola, anni, totale }) => (
+                      <tr key={scuola}>
+                        <td className="px-2 py-2 sm:p-3 font-bold text-slate-800">{scuola}</td>
+                        {acc.anni.map((a) => (
+                          <td key={a} className="px-2 py-2 sm:p-3 text-right text-slate-700">
+                            {anni[a] || 0}
+                          </td>
+                        ))}
+                        <td className="px-2 py-2 sm:p-3 text-right font-black text-red-600">{totale}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
