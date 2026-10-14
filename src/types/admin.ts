@@ -1,3 +1,12 @@
+// Stati salvati nel database (colonna candidature.shift_status).
+// NON cambiare questi valori: sono quelli già presenti nei dati.
+//  - "Da Valutare"     → risposta nuova, ancora da contattare
+//  - "In Attesa"       → da contattare (arriva da "Ci voglio pensare" o da "Già donatore")
+//  - "Da Ricontattare" → da risentire più avanti (eventualmente da una certa data)
+//  - "Contattato"      → inserito in un turno, in attesa di conferma dal trasfusionale
+//  - "Confermato"      → turno confermato dal trasfusionale
+export type ShiftStatus = 'Da Valutare' | 'Contattato' | 'Confermato' | 'Da Ricontattare' | 'In Attesa';
+
 export interface Candidato {
   id: string;
   created_at: string;
@@ -11,13 +20,13 @@ export interface Candidato {
   cellulare: string;
   email: string;
   tipo_adesione: string;
-  shift_status: 'Da Valutare' | 'Contattato' | 'Confermato' | 'Da Ricontattare' | 'In Attesa';
+  shift_status: ShiftStatus | null;
   data_disponibilita: string | null;
   note_ricontatto: string | null;
   motivo_scelta: string | null;
   data_ultima_donazione: string | null;
-  data_ricontatto?: string | null; 
-  scadenza_risposta?: string | null; 
+  data_ricontatto?: string | null;
+  scadenza_risposta?: string | null;
   note?: string | null;
   consenso_privacy?: boolean | null;
   consenso_multimediale?: boolean | null;
