@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import toast, { Toaster } from "react-hot-toast";
+import { SCUOLE } from "@/lib/scuole";
 
 export default function Home() {
   const [sezione, setSezione] = useState<number>(1);
@@ -18,18 +19,7 @@ export default function Home() {
     sei: "", seiAltro: "", note: "", consenso_privacy: false, consenso_multimediale: false
   });
 
-  const scuole = [
-    "Liceo G. Dal Piaz",
-    "ITIS Negrelli e Forcellini",
-    "ITE Colotti",
-    "IPSIA RIzzarda",
-    "Istituto Canossiano",
-    "IIS della Lucia",
-    "Università",
-    "Enaip",
-    "ICS Primiero",
-    "Altro"
-  ];
+  const scuole = SCUOLE;
 
   const motivi = [
     "Non posso donare per motivi di salute",
