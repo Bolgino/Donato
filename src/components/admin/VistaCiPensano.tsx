@@ -3,11 +3,13 @@ import { Candidato } from "@/types/admin";
 import {
   addMesi,
   contiene,
+  blocchiOggi,
   emailValida,
   fmtData,
   linkGmail,
   linkWhatsApp,
   MESI_PRIMA_DI_RISCRIVERE_A_CHI_CI_PENSA,
+  nato,
   nomeCompleto,
   oggiISO,
   quando,
@@ -15,7 +17,7 @@ import {
 } from "@/lib/donato";
 import { msgPensaci, NOME_PROGETTO } from "@/lib/messaggi";
 import { Azioni } from "./tipi";
-import { Bottone, Istruzioni, LinkGmail, LinkWhatsApp, Vuoto } from "./ui";
+import { BlocchiBadge, Bottone, Istruzioni, LinkGmail, LinkWhatsApp, Vuoto } from "./ui";
 
 /** Da più di un mese ci pensa e non ha ancora una scadenza per rispondere */
 export function daRiscrivere(c: Candidato): boolean {
@@ -65,19 +67,25 @@ export default function VistaCiPensano({ lista, azioni, ricerca }: { lista: Cand
             const vecchio = daRiscrivere(c);
             const scaduta = scadenzaPassata(c);
             const testo = msgPensaci(c);
+            const minorenne = blocchiOggi(c).find((b) => b.codice === "MINORENNE");
             return (
               <li key={c.id} className={`bg-white rounded-2xl border shadow-sm p-3 md:p-4 flex flex-col sm:flex-row gap-3 ${vecchio || scaduta ? "border-red-200" : "border-slate-200"}`}>
                 <div className="flex-1 min-w-0">
-                  <button onClick={() => azioni.apriScheda(c.id)} className="font-extrabold text-base text-slate-800 hover:underline text-left">
-                    {nomeCompleto(c)}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button onClick={() => azioni.apriScheda(c.id)} className="font-extrabold text-base text-slate-800 hover:underline text-left">
+                      {nomeCompleto(c)}
+                    </button>
+                    <BlocchiBadge c={c} />
+                  </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {c.istituto}
-                    {c.classe ? ` · ${c.classe}` : ""} ·{" "}
+                    {c.classe ? ` · ${c.classe}` : ""}
+                    {c.data_nascita ? ` · ${nato(c.sesso)} il ${fmtData(c.data_nascita)}` : ""} ·{" "}
                     <span className={vecchio ? "text-red-600 font-bold" : ""}>
                       {vecchio && "⚠️ "}risposta del {fmtData(c.created_at)} ({quando(c.created_at)})
                     </span>
                   </p>
+                  {minorenne && <p className="text-[11px] font-bold text-red-600 mt-1">🔞 {minorenne.testo}</p>}
                   {c.scadenza_risposta && (
                     <p className={`text-[11px] font-bold mt-1 ${scaduta ? "text-red-600" : "text-slate-600"}`}>
                       {scaduta ? "⛔ Scadenza passata: " : "⏳ Risposta entro "} {fmtData(c.scadenza_risposta)}
