@@ -20,7 +20,7 @@ Web app per raccogliere le adesioni degli studenti alla donazione di sangue e or
 | 2 | Gli scrivi su WhatsApp | Da contattare | **💬 WhatsApp**: la chat si apre con il messaggio già scritto e le prime date libere *in cui quella persona può andare* |
 | 3 | Quando risponde lo metti in un turno | Da contattare | **📅 Metti in turno** → scegli la data |
 | 4 | Mandi la lista al trasfusionale | 📅 **Turni** | **📋 Lista da fotografare** → screenshot (oppure *Copia testo*) → spunta *Inviata* |
-| 5 | Il trasfusionale conferma | Turni | **✅ Conferma il turno** (un tocco per tutto il turno) |
+| 5 | Il trasfusionale conferma | Turni | **persona per persona**: **✅ Conferma** se accettata, **✕ Togli** se no (motivo + da quando ricontattarla → torna in "Da ricontattare") |
 | 6 | Avvisi i prof che i ragazzi saranno assenti | Turni | per ogni scuola c'è il messaggio pronto con nomi e classi → **WhatsApp** o **Email** → spunta *Prof avvisati* |
 | 7 | Il giorno prima mandi il promemoria | Turni | un pulsante WhatsApp per ogni ragazzo |
 
@@ -28,7 +28,7 @@ Web app per raccogliere le adesioni degli studenti alla donazione di sangue e or
 
 - **🏠 Oggi** – la lista delle cose da fare: nuove risposte, persone da ricontattare, liste da mandare, turni da confermare, prof da avvisare, promemoria.
 - **💬 Da contattare** – chi ha detto sì (nuovi, già donatori, da ricontattare) e non è ancora in un turno. Da qui anche l'export per **Google Contatti** (*Seleziona i non salvati → Scarica file*, poi contacts.google.com → Importa).
-- **📅 Turni** – un riquadro per ogni data con i 4 passi (lista, conferma, prof, promemoria). Pallino giallo = da confermare, verde = confermato. I turni passati sono in fondo.
+- **📅 Turni** – un riquadro per ogni data (come i blocchi "Turno M14/10" dell'Excel) con i 4 passi: lista, conferma di ogni persona, prof, promemoria. Pallino giallo = da confermare, verde = confermato. I turni passati sono in fondo.
 - **🤔 Ci pensano** – chi ha risposto "Voglio pensarci". Dopo un mese scrivigli, imposta una scadenza, poi *Vuole partecipare* (va in Da contattare) o *Non interessato* (va in archivio).
 - **👩‍🏫 Rubrica prof** – i referenti delle scuole. Scrivi il nome della scuola **uguale a quello del modulo** (te lo suggerisce): così l'avviso viene abbinato da solo.
 - **🗂 Archivio** – tutte le risposte (anche i "No"), export Excel per anno scolastico, eliminazione.

@@ -125,6 +125,50 @@ export function SceltaData({
   );
 }
 
+/** Togli una persona dal turno: torna tra i "Da ricontattare" con il motivo (come la colonna STATO dell'Excel) */
+export function FormTogli({ c, azioni, onChiudi }: { c: Candidato; azioni: Azioni; onChiudi: () => void }) {
+  const [motivo, setMotivo] = useState("");
+  const [dal, setDal] = useState("");
+  const [inCorso, setInCorso] = useState(false);
+
+  const togli = async () => {
+    setInCorso(true);
+    const ok = await azioni.aggiorna(
+      c.id,
+      {
+        shift_status: "Da Ricontattare",
+        data_disponibilita: null,
+        note_ricontatto: motivo.trim() || "Rimosso dal turno.",
+        data_ricontatto: dal || null,
+      },
+      `${nomeCompleto(c)} tolto dal turno: ora è tra i "Da ricontattare"`,
+    );
+    setInCorso(false);
+    if (ok) onChiudi();
+  };
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2 text-left">
+      <p className="text-xs font-bold text-red-800">Togli {nomeCompleto(c)} dal turno: tornerà tra i &quot;Da ricontattare&quot;.</p>
+      <label className="block text-[11px] font-bold text-slate-600">Motivo</label>
+      <input
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        placeholder="es. non confermato, meno di 50 kg, ricontattare a maggio…"
+        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+      />
+      <label className="block text-[11px] font-bold text-slate-600">Ricontattare dal (facoltativo)</label>
+      <input type="date" value={dal} min={oggiISO()} onChange={(e) => setDal(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white" />
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Bottone tipo="pericolo" onClick={togli} disabled={inCorso}>
+          ✕ Togli dal turno
+        </Bottone>
+        <Bottone onClick={onChiudi}>Annulla</Bottone>
+      </div>
+    </div>
+  );
+}
+
 export default function SchedaPersona({
   c,
   tutti,
@@ -149,6 +193,7 @@ export default function SchedaPersona({
   const [mostraRicontatto, setMostraRicontatto] = useState(false);
   const [scadenza, setScadenza] = useState(c.scadenza_risposta ? soloData(c.scadenza_risposta) : addGiorni(oggiISO(), 14));
   const [nuovaData, setNuovaData] = useState("");
+  const [mostraTogli, setMostraTogli] = useState(false);
   const [inCorso, setInCorso] = useState(false);
 
   const sd = statoDonatore(c);
@@ -210,13 +255,6 @@ export default function SchedaPersona({
     if (!(await controllaData(nuovaData))) return;
     const ok = await esegui(() => azioni.aggiorna(c.id, { data_disponibilita: nuovaData }, `Spostato al ${fmtData(nuovaData, "giorno")}`));
     if (ok) setNuovaData("");
-  };
-
-  const togliDalTurno = async () => {
-    if (!(await conferma("Togliere questa persona dal turno? Finirà tra i 'Da ricontattare'.", "Sì, togli"))) return;
-    await esegui(() =>
-      azioni.aggiorna(c.id, { shift_status: "Da Ricontattare", data_disponibilita: null, note_ricontatto: "Rimosso dal turno." }, "Tolto dal turno"),
-    );
   };
 
   const elimina = async () => {
@@ -348,17 +386,18 @@ export default function SchedaPersona({
             <div className="flex flex-wrap gap-2">
               {fase === "in_turno" ? (
                 <Bottone tipo="ok" onClick={() => esegui(() => azioni.aggiorna(c.id, { shift_status: "Confermato" }, "Turno confermato"))} disabled={inCorso || !dataAttuale}>
-                  ✅ Segna confermato
+                  ✅ Confermato dal trasfusionale
                 </Bottone>
               ) : (
                 <Bottone onClick={() => esegui(() => azioni.aggiorna(c.id, { shift_status: "Contattato" }, "Tornato 'da confermare'"))} disabled={inCorso}>
-                  ↩ Torna "da confermare"
+                  ↩ Annulla conferma
                 </Bottone>
               )}
-              <Bottone tipo="pericolo" onClick={togliDalTurno} disabled={inCorso}>
-                Togli dal turno
+              <Bottone tipo="pericolo" onClick={() => setMostraTogli(!mostraTogli)} disabled={inCorso}>
+                ✕ Togli dal turno
               </Bottone>
             </div>
+            {mostraTogli && <FormTogli c={c} azioni={azioni} onChiudi={() => setMostraTogli(false)} />}
             <details>
               <summary className="cursor-pointer text-xs font-bold text-slate-500">Sposta in un&apos;altra data…</summary>
               <div className="mt-3 space-y-2">

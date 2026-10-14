@@ -26,7 +26,8 @@ import {
 } from "@/lib/donato";
 import { msgConfermato, msgInserito, msgListaTrasfusionale, msgPromemoria, msgProf, NOME_PROGETTO, oggettoProf } from "@/lib/messaggi";
 import { Azioni } from "./tipi";
-import { Bottone, conferma, EcgBadge, Istruzioni, LinkGmail, LinkWhatsApp, Modale, TipoBadge, Vuoto } from "./ui";
+import { FormTogli } from "./SchedaPersona";
+import { Bottone, EcgBadge, Istruzioni, LinkGmail, LinkWhatsApp, Modale, TipoBadge, Vuoto } from "./ui";
 
 async function copia(testo: string, cosa = "Testo") {
   if (await copiaTesto(testo)) toast.success(`${cosa} copiato: incollalo dove ti serve`);
@@ -250,6 +251,66 @@ function AvvisoProf({ t, profs, azioni }: { t: Turno; profs: Professore[]; azion
 }
 
 // ---------------------------------------------------------------
+// Una persona nel turno: conferma o togli, una alla volta
+// ---------------------------------------------------------------
+function RigaTurno({ c, azioni }: { c: Candidato; azioni: Azioni }) {
+  const [togli, setTogli] = useState(false);
+  const [inCorso, setInCorso] = useState(false);
+  const confermato = c.shift_status === "Confermato";
+  const testo = confermato ? msgConfermato(c, c.data_disponibilita) : msgInserito(c, c.data_disponibilita);
+
+  const cambiaStato = async (stato: "Confermato" | "Contattato") => {
+    setInCorso(true);
+    await azioni.aggiorna(c.id, { shift_status: stato }, stato === "Confermato" ? `${nomeCompleto(c)} confermato` : `Conferma di ${nomeCompleto(c)} annullata`);
+    setInCorso(false);
+  };
+
+  return (
+    <li className="px-4 py-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${confermato ? "bg-green-500" : "bg-amber-400"}`} title={confermato ? "Confermato" : "Da confermare"} />
+          <button onClick={() => azioni.apriScheda(c.id)} className="flex-1 min-w-0 text-left">
+            <p className="font-bold text-slate-800 hover:underline truncate">{nomeCompleto(c)}</p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+              <span className="text-[11px] text-slate-500">
+                {c.istituto}
+                {c.classe ? ` · ${c.classe}` : ""}
+              </span>
+              <TipoBadge tipo={c.tipo_adesione} />
+              <EcgBadge v={c.ha_fatto_ecg} />
+            </div>
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 pl-5 sm:pl-0 shrink-0">
+          {confermato ? (
+            <>
+              <span className="text-[11px] font-black text-green-700">✓ Confermato</span>
+              <Bottone onClick={() => cambiaStato("Contattato")} disabled={inCorso} title="Torna da confermare">
+                ↩ Annulla
+              </Bottone>
+            </>
+          ) : (
+            <Bottone tipo="ok" onClick={() => cambiaStato("Confermato")} disabled={inCorso}>
+              ✅ Conferma
+            </Bottone>
+          )}
+          <Bottone tipo="pericolo" onClick={() => setTogli(!togli)} disabled={inCorso}>
+            ✕ Togli
+          </Bottone>
+          <LinkWhatsApp href={linkWhatsApp(c.cellulare, testo)} />
+        </div>
+      </div>
+      {togli && (
+        <div className="mt-3 sm:ml-5">
+          <FormTogli c={c} azioni={azioni} onChiudi={() => setTogli(false)} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+// ---------------------------------------------------------------
 // Scheda di un turno con i 4 passi
 // ---------------------------------------------------------------
 function CardTurno({
@@ -266,22 +327,9 @@ function CardTurno({
   setSpunta: (s: SpuntaTurno) => void;
 }) {
   const [foglio, setFoglio] = useState(false);
-  const [inCorso, setInCorso] = useState(false);
   const posti = CONFIG_TURNI.postiPerTurno;
   const tuttoConfermato = t.daConfermare.length === 0;
   const giorni = giorniDaOggi(t.data);
-
-  const confermaTurno = async () => {
-    if (!(await conferma(`Il trasfusionale ha confermato il turno di ${fmtData(t.data, "giorno")}? Segno confermate ${t.daConfermare.length} persone.`, "Sì, conferma", false)))
-      return;
-    setInCorso(true);
-    await azioni.aggiornaMolti(
-      t.daConfermare.map((c) => c.id),
-      { shift_status: "Confermato" },
-      "Turno confermato! Ora avvisa i professori.",
-    );
-    setInCorso(false);
-  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -297,35 +345,19 @@ function CardTurno({
             {t.persone.length}/{posti} posti
           </span>
           {tuttoConfermato ? (
-            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-green-100 text-green-700">Confermato</span>
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-green-100 text-green-700">Tutti confermati</span>
           ) : (
-            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">Da confermare</span>
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+              {t.confermati.length}/{t.persone.length} confermati
+            </span>
           )}
         </div>
       </div>
 
       <ul className="divide-y divide-slate-100">
-        {t.persone.map((c) => {
-          const confermato = c.shift_status === "Confermato";
-          const testo = confermato ? msgConfermato(c, c.data_disponibilita) : msgInserito(c, c.data_disponibilita);
-          return (
-            <li key={c.id} className="px-4 py-3 flex items-center gap-3">
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${confermato ? "bg-green-500" : "bg-amber-400"}`} title={confermato ? "Confermato" : "Da confermare"} />
-              <button onClick={() => azioni.apriScheda(c.id)} className="flex-1 min-w-0 text-left">
-                <p className="font-bold text-slate-800 hover:underline truncate">{nomeCompleto(c)}</p>
-                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                  <span className="text-[11px] text-slate-500">
-                    {c.istituto}
-                    {c.classe ? ` · ${c.classe}` : ""}
-                  </span>
-                  <TipoBadge tipo={c.tipo_adesione} />
-                  <EcgBadge v={c.ha_fatto_ecg} />
-                </div>
-              </button>
-              <LinkWhatsApp href={linkWhatsApp(c.cellulare, testo)} />
-            </li>
-          );
-        })}
+        {t.persone.map((c) => (
+          <RigaTurno key={c.id} c={c} azioni={azioni} />
+        ))}
       </ul>
 
       <div className="p-4 space-y-4 border-t border-slate-200 bg-slate-50/60">
@@ -337,22 +369,20 @@ function CardTurno({
           </div>
         </Passo>
 
-        <Passo n={2} titolo="Il trasfusionale ha confermato?" fatto={tuttoConfermato}>
+        <Passo n={2} titolo="Segna chi ha confermato il trasfusionale" fatto={tuttoConfermato}>
           {tuttoConfermato ? (
             <p className="text-xs text-slate-500">Tutti confermati ✓</p>
           ) : (
-            <>
-              <Bottone tipo="ok" onClick={confermaTurno} disabled={inCorso}>
-                ✅ Sì, conferma il turno ({t.daConfermare.length})
-              </Bottone>
-              <p className="text-[11px] text-slate-500">Se qualcuno non va bene, tocca il suo nome e scegli &quot;Togli dal turno&quot; o &quot;Sposta&quot;.</p>
-            </>
+            <p className="text-xs text-slate-600">
+              Persona per persona, qui sopra: <b>✅ Conferma</b> se il trasfusionale l&apos;ha accettata, <b>✕ Togli</b> se non può (scrivi il motivo e da quando
+              ricontattarla). Mancano <b>{t.daConfermare.length}</b>.
+            </p>
           )}
         </Passo>
 
         <Passo n={3} titolo="Avvisa i professori che i ragazzi saranno assenti" fatto={!!spunta.prof} spento={t.confermati.length === 0}>
           {t.confermati.length === 0 ? (
-            <p className="text-xs text-slate-500">Prima conferma il turno.</p>
+            <p className="text-xs text-slate-500">Compare quando almeno una persona è confermata.</p>
           ) : (
             <>
               <AvvisoProf t={t} profs={profs} azioni={azioni} />
@@ -407,7 +437,8 @@ export default function VistaTurni({
             <b>Lista al trasfusionale</b>: apri la lista, fai uno screenshot (o copia il testo) e mandala. Poi spunta &quot;Inviata&quot;.
           </li>
           <li>
-            Quando il trasfusionale risponde, tocca <b>Conferma il turno</b>.
+            Quando il trasfusionale risponde, per <b>ogni persona</b> tocca <b>✅ Conferma</b> oppure <b>✕ Togli</b> (con il motivo, es. &quot;meno di 50 kg&quot;, e
+            da quando ricontattarla: tornerà tra i &quot;Da ricontattare&quot;).
           </li>
           <li>
             <b>Avvisa i prof</b>: per ogni scuola c&apos;è il messaggio pronto con nomi e classi (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
@@ -417,7 +448,7 @@ export default function VistaTurni({
           </li>
         </ol>
         <p className="text-xs">
-          Il pallino <span className="text-amber-500">●</span> giallo = da confermare, <span className="text-green-600">●</span> verde = confermato. Tocca un nome per spostarlo o toglierlo dal turno.
+          Il pallino <span className="text-amber-500">●</span> giallo = da confermare, <span className="text-green-600">●</span> verde = confermato. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
           Le spunte &quot;Inviata&quot; e &quot;Prof avvisati&quot; restano salvate su questo dispositivo.
         </p>
       </Istruzioni>

@@ -49,7 +49,7 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
             <b>Manda la lista al trasfusionale</b>: nel turno tocca 📋 Lista da fotografare, fai uno screenshot e mandalo (o usa Copia testo). Spunta &quot;Inviata&quot;.
           </li>
           <li>
-            <b>Conferma il turno</b>: quando il trasfusionale risponde, tocca ✅ Conferma il turno. I pallini diventano verdi.
+            <b>Conferma le persone</b>: quando il trasfusionale risponde, nel turno tocca ✅ Conferma accanto a ogni persona accettata (il pallino diventa verde) e ✕ Togli per chi non può, scrivendo il motivo e da quando ricontattarla.
           </li>
           <li>
             <b>Avvisa i prof</b>: nel turno, al passo 3, per ogni scuola c&apos;è il messaggio pronto con nomi e classi. Mandalo via WhatsApp o email e spunta &quot;Prof avvisati&quot;.
@@ -85,7 +85,7 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
 
       <Blocco titolo="Domande frequenti">
         <Domanda d="Un ragazzo non può più venire al turno">
-          Tocca il suo nome (in Turni) → <b>Togli dal turno</b> (torna tra i &quot;Da ricontattare&quot;) oppure <b>Sposta in un&apos;altra data</b>.
+          In Turni tocca <b>✕ Togli</b> accanto al suo nome, scrivi il motivo e se vuoi da quando ricontattarlo: torna tra i &quot;Da ricontattare&quot;. Per cambiargli data tocca il nome → <b>Sposta in un&apos;altra data</b>.
         </Domanda>
         <Domanda d="Il trasfusionale propone una data diversa">
           Nella scheda, sotto le date, tocca <b>&quot;Altra data concordata con il trasfusionale…&quot;</b> e scegli il giorno. Per spostare tutto un turno, sposta le persone una alla volta.
@@ -94,7 +94,7 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
           Le date piene non vengono proposte, ma con &quot;Altra data…&quot; puoi sceglierla lo stesso: l&apos;app ti chiede conferma.
         </Domanda>
         <Domanda d="Ho confermato per sbaglio">
-          Apri la scheda della persona e tocca <b>↩ Torna &quot;da confermare&quot;</b>.
+          Nel turno tocca <b>↩ Annulla</b> accanto al suo nome (oppure dalla scheda: <b>↩ Annulla conferma</b>).
         </Domanda>
         <Domanda d="Nel passo 'Avvisa i prof' dice che non c'è nessun prof">
           Vai in <Link v="rubrica">Rubrica prof</Link> e aggiungi il referente, scrivendo il nome della scuola <b>uguale a quello del modulo</b> (te lo suggerisce). Nel frattempo puoi usare &quot;Copia testo&quot;.

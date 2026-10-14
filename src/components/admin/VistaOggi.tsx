@@ -67,7 +67,7 @@ export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensan
         chiave: `conferma-${t.data}`,
         icona: "⏳",
         titolo: `Aspetti la conferma per ${giorno}`,
-        testo: "Quando il trasfusionale risponde, tocca “Conferma il turno”.",
+        testo: `Mancano ${t.daConfermare.length} da confermare: quando il trasfusionale risponde, conferma o togli ogni persona.`,
         bottone: "Apri il turno",
         vista: "turni",
         urgente: g <= 3,
@@ -116,7 +116,7 @@ const PERCORSO: { icona: string; testo: string; vista: Vista }[] = [
   { icona: "💬", testo: "Scrivi su WhatsApp", vista: "contattare" },
   { icona: "📅", testo: "Metti nel turno", vista: "contattare" },
   { icona: "📋", testo: "Lista al trasfusionale", vista: "turni" },
-  { icona: "✅", testo: "Conferma il turno", vista: "turni" },
+  { icona: "✅", testo: "Conferma le persone", vista: "turni" },
   { icona: "🏫", testo: "Avvisa i prof", vista: "turni" },
 ];
 
