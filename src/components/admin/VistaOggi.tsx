@@ -45,8 +45,8 @@ export function calcolaCompiti(
     out.push({
       chiave: "nuovi",
       icona: "💬",
-      titolo: `Scrivi a ${nuovi.length} ${nuovi.length === 1 ? "nuova risposta" : "nuove risposte"}`,
-      testo: `Manda il WhatsApp (è già scritto con le date libere) e quando rispondono mettili in un turno.${nonSalvati ? ` ${nonSalvati} non sono ancora in Google Contatti.` : ""}`,
+      titolo: `Metti in turno ${nuovi.length} ${nuovi.length === 1 ? "nuova risposta" : "nuove risposte"}`,
+      testo: `Scegli la data e poi manda il messaggio WhatsApp (già scritto) con i 2 file ULSS.${nonSalvati ? ` ${nonSalvati} non sono ancora in Google Contatti.` : ""}`,
       bottone: "Vai a Da contattare",
       vista: "contattare",
       urgente: true,
@@ -77,8 +77,8 @@ export function calcolaCompiti(
       out.push({
         chiave: `conferma-${t.data}`,
         icona: "✅",
-        titolo: `${n} ${n === 1 ? "ragazzo deve" : "ragazzi devono"} confermare il turno di ${giorno}`,
-        testo: `Scrivigli su WhatsApp (il messaggio è pronto) e segna chi conferma o toglilo dal turno (${quando(t.data)}).`,
+        titolo: `${n} ${n === 1 ? "ragazzo da confermare" : "ragazzi da confermare"} per ${giorno}`,
+        testo: `Mandagli il messaggio con i 2 file ULSS; quando ti dice che c'è, segnalo tu confermato (o toglilo dal turno). ${iniziale(quando(t.data))}.`,
         bottone: "Apri il turno",
         vista: "turni",
         urgente: g <= 7,
@@ -88,8 +88,8 @@ export function calcolaCompiti(
       out.push({
         chiave: `lista-${t.data}`,
         icona: "📋",
-        titolo: `Manda i nominativi di ${giorno} al trasfusionale`,
-        testo: `${t.confermati.length} ${t.confermati.length === 1 ? "ragazzo ha" : "ragazzi hanno"} confermato. Apri la lista, fai uno screenshot e mandala.`,
+        titolo: `Manda la foto di ${giorno} al trasfusionale`,
+        testo: `${t.confermati.length} ${t.confermati.length === 1 ? "ragazzo confermato" : "ragazzi confermati"}. Apri la lista, fai lo screenshot e manda la foto.`,
         bottone: "Apri il turno",
         vista: "turni",
         urgente: g <= 7,
@@ -99,8 +99,8 @@ export function calcolaCompiti(
       out.push({
         chiave: `prof-${t.data}`,
         icona: "🏫",
-        titolo: `Manda i nominativi di ${giorno} ai prof`,
-        testo: "Il messaggio con nomi e classi è già pronto per ogni scuola.",
+        titolo: `Manda la stessa foto di ${giorno} ai prof`,
+        testo: "Ai prof delle scuole coinvolte arriva solo la foto della lista: i loro contatti sono al passo 3 del turno.",
         bottone: "Apri il turno",
         vista: "turni",
         urgente: g <= 3,
@@ -111,7 +111,7 @@ export function calcolaCompiti(
         chiave: `promemoria-${t.data}`,
         icona: "🔔",
         titolo: `${g === 0 ? "Oggi" : "Domani"} c'è il turno: manda il promemoria`,
-        testo: "Nel turno, al passo 4, trovi un pulsante WhatsApp per ogni ragazzo.",
+        testo: "Nel turno, al passo 4, scegli con o senza accompagnatore e tocca il pulsante WhatsApp di ogni ragazzo.",
         bottone: "Apri il turno",
         vista: "turni",
         urgente: true,
@@ -124,8 +124,8 @@ export function calcolaCompiti(
     out.push({
       chiave: "pensano",
       icona: "🤔",
-      titolo: `${daSentire.length} ${daSentire.length === 1 ? "persona ci pensa" : "persone ci pensano"} da un po'`,
-      testo: "Scrivigli per sapere se partecipano e imposta una scadenza per la risposta.",
+      titolo: `Manda la mail a ${daSentire.length} ${daSentire.length === 1 ? "persona che ci pensa" : "persone che ci pensano"}`,
+      testo: "È passato circa un mese (o la scadenza): la lettera è già scritta, si manda solo via mail.",
       bottone: "Vai a Ci pensano",
       vista: "pensano",
     });
@@ -136,7 +136,7 @@ export function calcolaCompiti(
 const PERCORSO: { icona: string; testo: string; vista: Vista }[] = [
   { icona: "📣", testo: "Inizio anno: chiedi ai prof", vista: "rubrica" },
   { icona: "📝", testo: "Arrivano le risposte", vista: "contattare" },
-  { icona: "📅", testo: "Scrivi ai ragazzi e mettili nei turni", vista: "contattare" },
+  { icona: "📅", testo: "Mettili nei turni + messaggio e 2 file ULSS", vista: "contattare" },
   { icona: "✅", testo: "Confermi tu i ragazzi", vista: "turni" },
   { icona: "📸", testo: "Foto a trasfusionale e prof", vista: "turni" },
   { icona: "🔔", testo: "Promemoria il giorno prima", vista: "turni" },

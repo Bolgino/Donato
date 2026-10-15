@@ -18,9 +18,10 @@ import VistaArchivio from "@/components/admin/VistaArchivio";
 import VistaRubrica from "@/components/admin/VistaRubrica";
 import VistaStatistiche from "@/components/admin/VistaStatistiche";
 import VistaGuida from "@/components/admin/VistaGuida";
+import VistaDomande from "@/components/admin/VistaDomande";
 import { Azioni, Vista } from "@/components/admin/tipi";
 
-const CON_RICERCA: Vista[] = ["contattare", "turni", "pensano", "archivio", "rubrica"];
+const CON_RICERCA: Vista[] = ["contattare", "turni", "pensano", "archivio", "rubrica", "domande"];
 const CON_ANNO: Vista[] = ["archivio", "statistiche"];
 
 export default function AdminDashboard() {
@@ -293,6 +294,7 @@ export default function AdminDashboard() {
               {vista === "rubrica" && <VistaRubrica profs={professori} ricerca={ricerca} salva={salvaProf} elimina={eliminaProf} anno={annoCorrente} invitati={profInvitati} setInvitati={setProfInvitati} />}
               {vista === "archivio" && <VistaArchivio lista={datiAnno} annoAttivo={annoAttivo} azioni={azioni} ricerca={ricerca} />}
               {vista === "statistiche" && <VistaStatistiche dati={datiAnno} candidature={candidature} annoAttivo={annoAttivo} />}
+              {vista === "domande" && <VistaDomande ricerca={ricerca} />}
               {vista === "guida" && <VistaGuida vaiA={azioni.vaiA} />}
             </>
           )}

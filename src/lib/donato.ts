@@ -22,8 +22,10 @@ export const CONFIG_TURNI = {
 export const GIORNI_STOP_DOPO_DONAZIONE = 90;
 /** Oltre questi anni dall'ultima donazione un "già donatore" torna aspirante */
 export const ANNI_DONATORE_SCADUTO = 2;
-/** Dopo quanti mesi ricontattare chi "ci vuole pensare" */
+/** Dopo quanti mesi ricontattare (via mail) chi "ci vuole pensare" */
 export const MESI_PRIMA_DI_RISCRIVERE_A_CHI_CI_PENSA = 1;
+/** Quanti giorni dare per rispondere alla mail */
+export const GIORNI_PER_RISPONDERE = 14;
 
 // ============================================================
 // DATE (sempre in ora locale: niente sorprese con il fuso orario)
@@ -72,7 +74,7 @@ export function addAnni(iso: string, anni: number): string {
   return toISO(d);
 }
 
-type StileData = "breve" | "lunga" | "giorno" | "giornoAnno";
+type StileData = "breve" | "lunga" | "giorno" | "giornoAnno" | "giornoMese";
 
 /** breve: 21/10/2026 · lunga: martedì 21 ottobre 2026 · giorno: martedì 21 ottobre */
 export function fmtData(s: string | null | undefined, stile: StileData = "breve"): string {
@@ -82,6 +84,7 @@ export function fmtData(s: string | null | undefined, stile: StileData = "breve"
   if (stile === "breve") return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
   if (stile === "giorno") return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
   if (stile === "giornoAnno") return d.toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" });
+  if (stile === "giornoMese") return d.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
   return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -374,6 +377,11 @@ export function linkGmail(to: string, oggetto?: string, corpo?: string): string 
   if (oggetto) url += `&su=${encodeURIComponent(oggetto)}`;
   if (corpo) url += `&body=${encodeURIComponent(corpo)}`;
   return url;
+}
+
+/** Una sola mail a più persone, in copia nascosta (nessuno vede gli indirizzi degli altri) */
+export function linkGmailCcn(destinatari: string[], oggetto: string, corpo: string): string {
+  return `https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(destinatari.join(","))}&su=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(corpo)}`;
 }
 
 export async function copiaTesto(testo: string): Promise<boolean> {

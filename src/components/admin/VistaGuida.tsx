@@ -44,8 +44,10 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
             <Link v="pensano">Ci pensano</Link>, chi dice no solo in <Link v="archivio">Archivio</Link>.
           </li>
           <li>
-            <b>Contatta i ragazzi e inseriscili nei turni</b>, cioè nelle date già concordate prima con il trasfusionale. In Da contattare tocca 💬 WhatsApp: il messaggio
-            propone le date libere in cui quel ragazzo può andare. Quando risponde tocca 📅 Metti in turno e scegli la data.
+            <b>Inserisci i ragazzi nei turni e scrivigli</b>. I turni sono le date già concordate prima con il trasfusionale. In Da contattare tocca <b>📅 Metti in turno</b>{" "}
+            e scegli la data; subito dopo tocca <b>💬 WhatsApp</b>: si apre il messaggio già scritto con la data, l&apos;orario e il punto d&apos;incontro. Insieme al messaggio
+            vanno mandati <b>i 2 file dell&apos;ULSS</b> (modulo pre-donazione e modulo sospensione): i link sono già nel messaggio e con <b>📎 Invia i 2 file ULSS</b> li mandi
+            anche come file.
           </li>
           <li>
             <b>Confermi tu i ragazzi</b>. Quando un ragazzo ti dice che è disponibile, nella pagina <Link v="turni">Turni</Link> tocca <b>✅ Segna confermato</b> accanto al suo
@@ -58,12 +60,51 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
             coinvolte. Poi spunta &quot;Inviata&quot; e &quot;Prof avvisati&quot;.
           </li>
           <li>
-            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la donazione (passo 4 del turno: c&apos;è un pulsante WhatsApp per ognuno).
+            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la donazione: passo 4 del turno, scegli <b>con</b> o <b>senza accompagnatore</b> e
+            tocca il pulsante WhatsApp di ognuno.
           </li>
         </ol>
         <p className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-900">
           Non sai da dove iniziare? Apri <Link v="oggi">Oggi</Link>: ti dice cosa c&apos;è da fare adesso, con un pulsante per ogni cosa.
         </p>
+      </Blocco>
+
+      <Blocco titolo="Chi ha risposto &quot;Voglio pensarci&quot;">
+        <ul className="list-disc ml-5 space-y-1">
+          <li>
+            Si ricontatta <b>circa un mese dopo</b> la risposta al modulo e <b>solo via mail</b>, non su WhatsApp.
+          </li>
+          <li>
+            Quando è il momento, in <Link v="pensano">Ci pensano</Link> la persona diventa rossa: tocca <b>✉️ Manda la mail</b>. Si apre Gmail con la lettera già scritta e la
+            data entro cui rispondere, che viene salvata. Se sono tanti, c&apos;è <b>Una mail a tutti in Ccn</b>.
+          </li>
+          <li>
+            Quando risponde: <b>✅ Vuole partecipare</b> (passa in Da contattare) oppure <b>❌ Non interessato</b> (va in archivio). Se la scadenza passa senza risposta,
+            torna rossa.
+          </li>
+        </ul>
+      </Blocco>
+
+      <Blocco titolo="I messaggi già pronti">
+        <ul className="list-disc ml-5 space-y-1">
+          <li>
+            <b>Messaggio del turno</b> (WhatsApp, quando metti un ragazzo in turno): data, orario, punto d&apos;incontro, cosa portare, i link ai 2 file ULSS. Chiede al
+            ragazzo di confermare.
+          </li>
+          <li>
+            <b>Promemoria del giorno prima</b> (WhatsApp): con accompagnatore (nome e cellulare) oppure senza accompagnatore (come arrivare al Centro Trasfusionale).
+          </li>
+          <li>
+            <b>Lettera per chi ci sta pensando</b> (solo mail).
+          </li>
+          <li>
+            Il nome e il cellulare dell&apos;<b>accompagnatore</b> e l&apos;orario si impostano in <Link v="turni">Turni</Link>, riquadro &quot;Accompagnatore&quot;: restano
+            salvati sul dispositivo.
+          </li>
+          <li>
+            Per rispondere ai dubbi dei ragazzi usa <Link v="domande">Domande dei ragazzi</Link>: risposte pronte da copiare.
+          </li>
+        </ul>
       </Blocco>
 
       <Blocco titolo="Le regole che l'app controlla da sola">
@@ -118,7 +159,13 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
           le divide anche per scuola, come il foglio &quot;Rendimento annuale&quot;. Chi viene tolto da un turno non viene contato.
         </Domanda>
         <Domanda d="Posso cambiare il testo dei messaggi?">
-          Sì: il messaggio si apre già scritto in WhatsApp/Gmail e puoi modificarlo prima di inviarlo. Nella scheda della persona puoi anche scegliere un altro messaggio pronto dal menu.
+          Sì: il messaggio si apre già scritto in WhatsApp/Gmail e puoi modificarlo prima di inviarlo. Nella scheda della persona puoi anche scegliere un altro messaggio pronto
+          dal menu. I testi sono quelli dei vostri documenti (messaggio interessati al progetto, reminder, lettera indecisi); per cambiarli per sempre bisogna modificare il file{" "}
+          <code>src/lib/messaggi.ts</code>.
+        </Domanda>
+        <Domanda d="Come mando i 2 file dell'ULSS?">
+          I link ai due PDF sono già in fondo al messaggio del turno. Se vuoi mandarli come file, tocca <b>📎 Invia i 2 file ULSS</b>: sul telefono si apre la condivisione
+          (scegli WhatsApp e la chat del ragazzo); sul computer compaiono i due PDF da scaricare e allegare.
         </Domanda>
         <Domanda d="Le spunte 'Inviata' e 'Prof avvisati' non le vedo su un altro telefono">
           Sono salvate solo sul dispositivo dove le hai messe (come la spunta &quot;Fatto&quot; dei prof a inizio anno). Le conferme che segni ai ragazzi invece sono salvate per tutti.

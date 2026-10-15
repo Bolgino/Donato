@@ -8,7 +8,6 @@ import {
   blocchiAl,
   calcolaAnnoScolastico,
   CONFIG_TURNI,
-  dateLibere,
   dateProposte,
   emailValida,
   ETICHETTA_FASE,
@@ -28,15 +27,16 @@ import {
   soloData,
   statoDonatore,
 } from "@/lib/donato";
-import { ETICHETTA_MESSAGGIO, NOME_PROGETTO, testoMessaggio, TipoMessaggio } from "@/lib/messaggi";
+import { ETICHETTA_MESSAGGIO, NOME_PROGETTO, OGGETTO_INDECISI, SOLO_EMAIL, testoMessaggio, TipoMessaggio } from "@/lib/messaggi";
+import { useImpostazioni } from "@/lib/impostazioni";
 import { Azioni } from "./tipi";
-import { BlocchiBadge, Bottone, conferma, EcgBadge, LinkGmail, LinkWhatsApp, Modale, TipoBadge } from "./ui";
+import { BlocchiBadge, Bottone, conferma, DocumentiUlss, EcgBadge, LinkGmail, LinkWhatsApp, Modale, TipoBadge } from "./ui";
 
 function messaggioPredefinito(fase: Fase, c: Candidato): TipoMessaggio {
-  if (fase === "da_contattare" || fase === "da_ricontattare") return "primo";
-  if (fase === "in_turno") return "inserito";
-  if (fase === "confermato") return c.data_disponibilita && giorniDaOggi(c.data_disponibilita) <= 2 ? "promemoria" : "confermato";
-  if (fase === "ci_pensa") return "pensaci";
+  // Da contattare: prima si sceglie il turno, poi parte il messaggio con la data
+  if (fase === "in_turno") return "turno";
+  if (fase === "confermato") return c.data_disponibilita && giorniDaOggi(c.data_disponibilita) <= 2 ? "promemoria_con" : "vuoto";
+  if (fase === "ci_pensa") return "indecisi";
   return "vuoto";
 }
 
@@ -184,14 +184,17 @@ export default function SchedaPersona({
   const [scelta, setScelta] = useState<{ fase: Fase; tipo: TipoMessaggio } | null>(null);
   const tipoMsg = scelta && scelta.fase === fase ? scelta.tipo : messaggioPredefinito(fase, c);
   const occ = occupazioneTurni(tutti);
-  const testo = testoMessaggio(tipoMsg, c, dateLibere(c, occ));
+  const imp = useImpostazioni();
+  // Per la mail a chi ci pensa: se la scadenza non è ancora salvata, usa quella proposta (e la salva all'invio)
+  const [scadenza, setScadenza] = useState(c.scadenza_risposta ? soloData(c.scadenza_risposta) : addGiorni(oggiISO(), 14));
+  const testo = testoMessaggio(tipoMsg, tipoMsg === "indecisi" && !c.scadenza_risposta ? { ...c, scadenza_risposta: scadenza } : c, imp);
+  const soloEmail = SOLO_EMAIL.includes(tipoMsg);
 
   const [dataTurno, setDataTurno] = useState("");
   const [subitoConfermato, setSubitoConfermato] = useState(false);
   const [ricData, setRicData] = useState(c.data_ricontatto ? soloData(c.data_ricontatto) : "");
   const [ricNota, setRicNota] = useState(c.note_ricontatto || "");
   const [mostraRicontatto, setMostraRicontatto] = useState(false);
-  const [scadenza, setScadenza] = useState(c.scadenza_risposta ? soloData(c.scadenza_risposta) : addGiorni(oggiISO(), 14));
   const [nuovaData, setNuovaData] = useState("");
   const [mostraTogli, setMostraTogli] = useState(false);
   const [inCorso, setInCorso] = useState(false);
@@ -265,7 +268,53 @@ export default function SchedaPersona({
 
   const eta = etaAl(c.data_nascita, oggiISO());
   const wa = tipoMsg === "vuoto" ? linkWhatsApp(c.cellulare) : linkWhatsApp(c.cellulare, testo);
-  const mail = emailValida(c.email) ? linkGmail(c.email, NOME_PROGETTO, testo || undefined) : null;
+  const mail = emailValida(c.email) ? linkGmail(c.email, tipoMsg === "indecisi" ? OGGETTO_INDECISI : NOME_PROGETTO, testo || undefined) : null;
+  const salvaScadenzaSeManca = () => {
+    if (tipoMsg === "indecisi" && !c.scadenza_risposta) azioni.aggiorna(c.id, { scadenza_risposta: scadenza }, `Mail aperta · risposta entro il ${fmtData(scadenza)}`);
+  };
+
+  const daContattare = fase === "da_contattare" || fase === "da_ricontattare";
+  const titoloContatto = daContattare ? "2 · Poi scrivigli" : fase === "ci_pensa" ? "1 · Mandagli la mail" : "1 · Scrivigli";
+  const sezioneContatto = (
+      <Sezione titolo={titoloContatto}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <select
+            value={tipoMsg}
+            onChange={(e) => setScelta({ fase, tipo: e.target.value as TipoMessaggio })}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-semibold flex-1"
+          >
+            {(Object.keys(ETICHETTA_MESSAGGIO) as TipoMessaggio[]).map((k) => (
+              <option key={k} value={k}>
+                {ETICHETTA_MESSAGGIO[k]}
+              </option>
+            ))}
+          </select>
+          <div className="flex flex-wrap gap-2">
+            {!soloEmail && <LinkWhatsApp href={wa} grande />}
+            <LinkGmail href={mail} grande onClick={salvaScadenzaSeManca} />
+            {tipoMsg === "turno" && <DocumentiUlss grande />}
+          </div>
+        </div>
+        {tipoMsg === "turno" && !c.data_disponibilita && (
+          <p className="text-xs font-bold text-orange-700">Prima mettilo in un turno (qui sopra): il messaggio contiene la data della visita.</p>
+        )}
+        {soloEmail && !emailValida(c.email) && <p className="text-xs font-bold text-orange-700">Manca un indirizzo email valido.</p>}
+        {(fase === "da_contattare" || fase === "da_ricontattare") && (
+          <p className="text-[11px] text-slate-500">
+            Quando l&apos;hai messo nel turno qui sopra, qui compare il messaggio con la data, da mandare insieme ai 2 file ULSS.
+          </p>
+        )}
+        {testo && (
+          <details className="text-xs text-slate-600">
+            <summary className="cursor-pointer font-semibold text-slate-500">Vedi il testo che verrà scritto</summary>
+            <p className="whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-lg p-3 mt-2">{testo}</p>
+          </details>
+        )}
+        <p className="text-[11px] text-slate-500">
+          📱 {c.cellulare || "—"} {emailValida(c.email) && <>· ✉️ {c.email}</>}
+        </p>
+      </Sezione>
+  );
 
   return (
     <Modale onClose={onClose}>
@@ -286,39 +335,11 @@ export default function SchedaPersona({
       </div>
 
       <div className="p-5 space-y-4">
-        {/* CONTATTA */}
-        <Sezione titolo="1 · Scrivigli">
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-            <select
-              value={tipoMsg}
-              onChange={(e) => setScelta({ fase, tipo: e.target.value as TipoMessaggio })}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-semibold flex-1"
-            >
-              {(Object.keys(ETICHETTA_MESSAGGIO) as TipoMessaggio[]).map((k) => (
-                <option key={k} value={k}>
-                  {ETICHETTA_MESSAGGIO[k]}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <LinkWhatsApp href={wa} grande />
-              <LinkGmail href={mail} grande />
-            </div>
-          </div>
-          {testo && (
-            <details className="text-xs text-slate-600">
-              <summary className="cursor-pointer font-semibold text-slate-500">Vedi il testo che verrà scritto</summary>
-              <p className="whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-lg p-3 mt-2">{testo}</p>
-            </details>
-          )}
-          <p className="text-[11px] text-slate-500">
-            📱 {c.cellulare || "—"} {emailValida(c.email) && <>· ✉️ {c.email}</>}
-          </p>
-        </Sezione>
+        {!daContattare && sezioneContatto}
 
         {/* AZIONI IN BASE ALLA FASE */}
         {(fase === "da_contattare" || fase === "da_ricontattare") && (
-          <Sezione titolo="2 · Quando ti ha risposto" colore="red">
+          <Sezione titolo="1 · Scegli il turno" colore="red">
             {fase === "da_ricontattare" && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-900">
                 <b>Da ricontattare</b>
@@ -333,7 +354,7 @@ export default function SchedaPersona({
                 {sd.scaduto && <> · più di 2 anni fa: quando lo metti in turno torna <b>aspirante</b></>}
               </div>
             )}
-            <p className="text-sm font-bold text-slate-700">✅ Ha detto sì: scegli il turno</p>
+            <p className="text-sm font-bold text-slate-700">📅 Scegli la data (tra i turni concordati con il trasfusionale)</p>
             <SceltaData c={c} tutti={tutti} valore={dataTurno} onChange={setDataTurno} />
             <label className="flex items-center gap-2 text-xs text-slate-600">
               <input type="checkbox" checked={subitoConfermato} onChange={(e) => setSubitoConfermato(e.target.checked)} className="w-4 h-4 accent-red-600" />
@@ -375,6 +396,8 @@ export default function SchedaPersona({
             )}
           </Sezione>
         )}
+
+        {daContattare && sezioneContatto}
 
         {(fase === "in_turno" || fase === "confermato") && (
           <Sezione titolo="2 · Turno" colore={fase === "confermato" ? "green" : "blue"}>

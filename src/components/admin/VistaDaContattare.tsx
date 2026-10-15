@@ -1,25 +1,22 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { Candidato } from "@/types/admin";
 import {
   blocchiOggi,
   contiene,
-  dateLibere,
   faseDi,
   fmtData,
   isGiaDonatore,
   linkWhatsApp,
   nato,
   nomeCompleto,
-  occupazioneTurni,
   oggiISO,
   quando,
   scaricaCsvGoogleContatti,
   soloData,
   statoDonatore,
 } from "@/lib/donato";
-import { msgPrimoContatto } from "@/lib/messaggi";
 import { Azioni } from "./tipi";
 import { BlocchiBadge, Bottone, Chip, EcgBadge, Istruzioni, LinkWhatsApp, TipoBadge, Vuoto } from "./ui";
 
@@ -54,7 +51,6 @@ export default function VistaDaContattare({
 }) {
   const [filtro, setFiltro] = useState<Filtro>("tutti");
   const [selezionati, setSelezionati] = useState<Set<string>>(new Set());
-  const occ = useMemo(() => occupazioneTurni(tutti), [tutti]);
 
   const conteggi = {
     tutti: lista.length,
@@ -101,13 +97,15 @@ export default function VistaDaContattare({
         </p>
         <ol className="list-decimal ml-5 space-y-1">
           <li>
-            Tocca <b>💬 WhatsApp</b>: si apre la chat con il messaggio già scritto e le date libere. Controllalo e invia.
+            Tocca <b>📅 Metti in turno</b> e scegli la data (tra quelle già concordate con il trasfusionale). Il ragazzo passa nella pagina <b>Turni</b>.
           </li>
           <li>
-            Quando ti risponde, tocca <b>📅 Metti in turno</b> e scegli la data. Passerà nella pagina <b>Turni</b>.
+            Subito dopo, nella scheda (o in Turni accanto al nome) tocca <b>💬 WhatsApp</b>: si apre il messaggio già scritto con la data. Mandalo insieme ai{" "}
+            <b>📎 2 file ULSS</b> (modulo pre-donazione e modulo sospensione).
           </li>
           <li>
-            Se non risponde o non può adesso, apri la scheda e scegli <b>🔄 Non risponde / più avanti</b> (puoi indicare da quando ricontattarlo).
+            Quando ti risponde che c&apos;è, in <b>Turni</b> tocca <b>✅ Segna confermato</b>. Se non può in quella data, spostalo; se non risponde, <b>🔄 Non risponde / più
+            avanti</b> (puoi indicare da quando ricontattarlo).
           </li>
         </ol>
         <p className="text-xs">
@@ -155,7 +153,6 @@ export default function VistaDaContattare({
             const pausa = inPausa(c);
             const rosso = blocchiOggi(c).length > 0;
             const sd = statoDonatore(c);
-            const testo = msgPrimoContatto(c, dateLibere(c, occ));
             return (
               <li key={c.id} className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-3 md:p-4 flex gap-3 ${pausa ? "opacity-60" : ""}`}>
                 <input
@@ -196,7 +193,7 @@ export default function VistaDaContattare({
                   {c.note && <p className="text-[11px] text-slate-500 italic mt-1 line-clamp-2">“{c.note}”</p>}
                 </div>
                 <div className="flex sm:flex-col gap-2 shrink-0 sm:items-stretch">
-                  <LinkWhatsApp href={linkWhatsApp(c.cellulare, testo)} />
+                  <LinkWhatsApp href={linkWhatsApp(c.cellulare)}>Chat</LinkWhatsApp>
                   <Bottone tipo="primario" onClick={() => azioni.apriScheda(c.id)}>
                     📅 Metti in turno
                   </Bottone>

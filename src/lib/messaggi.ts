@@ -1,71 +1,143 @@
-// Testi già pronti per WhatsApp ed email.
-// Si aprono già scritti nella chat: puoi sempre modificarli prima di premere Invia.
-// Per cambiarli in modo permanente, modifica le frasi qui sotto.
+// Testi dei messaggi che il gruppo usa davvero (dai documenti "Messaggio interessati al progetto",
+// "Messaggio reminder" e "Lettera indecisi"). Si aprono già scritti in WhatsApp/Gmail:
+// si possono sempre modificare prima di premere Invia.
+// Nome e cellulare dell'accompagnatore NON sono qui (il codice è pubblico): si impostano
+// nell'app, pagina Turni → "Accompagnatore", e restano sul dispositivo.
 import { Candidato, Professore } from "@/types/admin";
 import { CONFIG_TURNI, fmtData, isGiaDonatore, maiuscolaIniziale, sessoBreve, Turno } from "@/lib/donato";
+import { Impostazioni } from "@/lib/impostazioni";
 
-export const FIRMA = "Gruppo Giovani Donatori Feltre";
+export const FIRMA = "Fidas Feltre – Gruppo Giovani Donatori";
 export const NOME_PROGETTO = "Progetto Scuole – Giovani Donatori Feltre";
 
-const nome = (c: Candidato) => maiuscolaIniziale(c.nome) || "";
+// ---------- I due file dell'ULSS da mandare con il primo messaggio ----------
+export const DOCUMENTI_ULSS = [
+  { titolo: "Modulo pre-donazione (consigli utili ai donatori)", file: "consigli-utili-donatori.pdf" },
+  { titolo: "Modulo sospensione dalla donazione", file: "promemoria-sospensione-donazione.pdf" },
+];
 
-export type TipoMessaggio = "primo" | "inserito" | "confermato" | "promemoria" | "pensaci" | "vuoto";
+export function urlDocumento(file: string): string {
+  const origine = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origine}/documenti/${file}`;
+}
+
+// ---------- Tipi di messaggio ----------
+export type TipoMessaggio = "turno" | "promemoria_con" | "promemoria_senza" | "indecisi" | "vuoto";
 
 export const ETICHETTA_MESSAGGIO: Record<TipoMessaggio, string> = {
-  primo: "Primo contatto (con le date libere)",
-  inserito: "Inserito nel turno: ci confermi?",
-  confermato: "Hai confermato: grazie",
-  promemoria: "Promemoria il giorno prima",
-  pensaci: "Per chi ci stava pensando",
+  turno: "Messaggio del turno (data + 2 file ULSS)",
+  promemoria_con: "Promemoria il giorno prima – con accompagnatore",
+  promemoria_senza: "Promemoria il giorno prima – senza accompagnatore",
+  indecisi: "Mail per chi ci sta pensando (solo email)",
   vuoto: "Chat vuota",
 };
 
-export function msgPrimoContatto(c: Candidato, date: string[]): string {
-  const saluto = `Ciao ${nome(c)}! 👋 Siamo il ${FIRMA}. Abbiamo ricevuto la tua adesione al Progetto Scuole, grazie! 🩸`;
-  if (date.length === 0) {
-    return `${saluto}\n\nTi scriviamo per organizzare la visita di idoneità al ${CONFIG_TURNI.luogo}. In quali giorni saresti disponibile?`;
-  }
-  const elenco = date.map((d) => `• ${fmtData(d, "giorno")}`).join("\n");
-  return `${saluto}\n\nPer la visita di idoneità al ${CONFIG_TURNI.luogo} abbiamo queste date libere:\n${elenco}\n\nQuale ti va meglio? Rispondi pure qui 🙂`;
+/** I messaggi che vanno solo per email */
+export const SOLO_EMAIL: TipoMessaggio[] = ["indecisi"];
+
+const giorno = (data: string | null) => (data ? fmtData(data, "giorno") : "il giorno della visita");
+
+/** "Messaggio interessati al progetto": si manda quando il ragazzo è stato messo in un turno */
+export function msgTurno(c: Candidato, data: string | null, imp: Impostazioni): string {
+  const chi = imp.accompagnatore.trim() ? `${imp.accompagnatore.trim()} sarà lì ad aspettarti` : "uno di noi sarà lì ad aspettarti";
+  const allegati = DOCUMENTI_ULSS.map((d) => `📎 ${d.titolo}: ${urlDocumento(d.file)}`).join("\n");
+  return `Ciao!
+
+Sono dei Giovani Donatori di Feltre! Ti ringrazio per la tua disponibilità a voler diventare un donatore di sangue! 🩸
+
+Ti scrivo per darti alcuni dettagli sulla tua visita di idoneità, fissata per ${giorno(data)}. Ti dovrai presentare alle ${imp.orario} al bar dell'ospedale, dove ${chi} e ti accompagnerà durante la visita. Quando avrai finito, potrai andartene e la tua assenza sarà giustificata (ricordati di portare a scuola il *certificato medico* che potrai richiedere direttamente in trasfusionale).
+
+Se hai fatto un ELETTROCARDIOGRAMMA negli ultimi due anni, portalo con te! Se non l'hai fatto ma pratichi uno sport a livello agonistico, fallo presente alla dottoressa durante il colloquio.
+
+Non dimenticare di portare con te la CARTA D'IDENTITÀ e la TESSERA SANITARIA, e di dare un'occhiata al modulo pre-donazione allegato per le istruzioni!!
+
+Se hai meno di 50 kg di peso corporeo o sei affetto da asma bronchiale, purtroppo non è possibile accettare la tua donazione. Per quanto riguarda l'asma allergica invece, potrai donare nei periodi asintomatici!! Per qualsiasi dubbio, controlla il modulo di sospensione dalla donazione in allegato.
+
+Inoltre, se lo desideri, hai l'occasione di essere pre-inserito per la donazione di midollo osseo! (a volte è più necessario di una trasfusione!) La prima volta che donerai il sangue, ti sarà prelevata una piccola provetta in più da analizzare e inserirti nel registro mondiale!! Se sei interessato, scrivimi.
+
+Ti aspetto ${giorno(data)} alle ${imp.orario}! Fammi sapere al più presto se ci sarai, altrimenti ci organizziamo per un'altra data.
+
+Se hai domande, non esitare a contattarmi!
+
+P.S. Questo messaggio è solo per te e per gli altri ragazzi e ragazze invitati a fare la visita, quindi non inoltrarlo ai tuoi compagni!
+
+${allegati}`;
 }
 
-/** Chiede al ragazzo di confermare la sua disponibilità per il turno */
-export function msgInserito(c: Candidato, data: string | null): string {
-  return `Ciao ${nome(c)}! Ti abbiamo inserito nel turno di ${data ? fmtData(data, "giorno") : "visita"} per la visita di idoneità al ${CONFIG_TURNI.luogo}.\nCi confermi che ci sei? Rispondi qui con un sì 👍 Se invece non puoi, dimmelo e troviamo un'altra data.`;
+const INIZIO_PROMEMORIA = `Ciao!
+
+Solo un veloce promemoria per domani: non dimenticare la TESSERA SANITARIA e la CARTA D'IDENTITÀ! Ecco un piccolo riassunto delle regole pre-donazione: non assumere zuccheri, latticini o cibi grassi a colazione, meglio optare per qualcosa di leggero, come due fette biscottate (senza nulla, avrete modo di rifarvi dopo!). Se hai L'ELETTROCARDIOGRAMMA, portalo con te!`;
+
+/** "Messaggio reminder" – con accompagnatore */
+export function msgPromemoriaCon(imp: Impostazioni): string {
+  const nome = imp.accompagnatore.trim() || "Uno di noi";
+  const tel = imp.telAccompagnatore.trim() ? ` Se hai bisogno, ecco il suo numero: ${imp.telAccompagnatore.trim()}.` : "";
+  return `${INIZIO_PROMEMORIA}
+
+Ah, e non dimenticare di richiedere al Trasfusionale il *certificato medico*, con quello sarai segnato fuori classe a scuola, almeno per le ore della visita, e vedi tu se ricordare che sei fuori classe anche ai tuoi amici!
+
+${nome} sarà lì ad aspettarti al bar dell'ospedale alle ${imp.orario}.${tel}
+
+Ciao e ci vediamo domani!👋🏻`;
 }
 
-/** Dopo che il ragazzo ha confermato */
-export function msgConfermato(c: Candidato, data: string | null): string {
-  return `Perfetto ${nome(c)}, sei confermato per ${data ? fmtData(data, "giorno") : "la visita"} al ${CONFIG_TURNI.luogo} ✅\nComunichiamo noi il tuo nome al trasfusionale e ai professori. Il giorno prima ti mandiamo un promemoria. Per qualsiasi dubbio scrivici qui!`;
+/** "Messaggio reminder" – senza accompagnatore */
+export function msgPromemoriaSenza(imp: Impostazioni): string {
+  return `${INIZIO_PROMEMORIA}
+
+Ah, e non dimenticare che sarai segnato fuori classe a scuola, almeno per le ore della visita, quindi vedi tu se ricordarlo anche ai tuoi amici!
+
+Piccola variazione di programma: il nostro accompagnatore ha avuto un contrattempo e non potrà venire. Ma niente paura! Abbiamo contattato il centro trasfusionale, per qualsiasi domanda o dubbio potrai contare su di loro!!💪🏻
+
+Per raggiungere il Centro Trasfusionale, entrate dal vecchio ingresso dell'ospedale di Feltre e seguite il corridoio fino a quando trovate il cartello "centro prelievi donatori di sangue". L'appuntamento è sempre alle ${imp.orario}.
+
+Ciao e ci vediamo domani!👋🏻`;
 }
 
-export function msgPromemoria(c: Candidato, data: string | null): string {
-  return `Ciao ${nome(c)}! Ti ricordiamo la visita di ${data ? fmtData(data, "giorno") : "domani"} al ${CONFIG_TURNI.luogo}. Se hai un imprevisto avvisaci subito qui. A presto! 🩸`;
+// ---------- Mail per chi ci sta pensando ("Lettera indecisi", versione 2) ----------
+export const OGGETTO_INDECISI = "Progetto Scuole – Giovani Donatori Feltre";
+
+export function msgIndecisi(scadenza: string | null): string {
+  const entro = scadenza ? ` entro il ${fmtData(scadenza, "giornoMese")}` : "";
+  return `Ciao!
+
+Siamo i ragazzi che sono stati nella tua classe per parlare della donazione del sangue, ti scriviamo perché avevi manifestato l'intenzione di riflettere se diventare o meno donatore.
+
+Sappiamo che prendere questa decisione non è facile, i tuoi dubbi sono più che motivati, per cui siamo qui per aiutarti!
+
+Il progetto che ti proponiamo prevede di venire con noi al Centro Trasfusionale di Feltre per fare la visita di idoneità (che consiste in una breve visita medica, analisi del sangue ed elettrocardiogramma, se non ne hai già fatto uno negli ultimi 2 anni) al fine di diventare donatore. Sarà una passeggiata insieme!
+
+Ti consigliamo di pensare a questo importante, quanto semplice, passo e se sei interessato, rispondi a questa email e ti daremo alcune date possibili per la visita. Altrimenti, se non sei interessato, nessun problema, non ti disturberemo più.
+
+Ti ricordiamo che donare sangue è facile e sicuro (il prelievo dura meno di 10 minuti!), e che un piccolo contributo può davvero salvare una vita. E sai qual è il bello? La donazione non ha controindicazioni per il donatore e permette di avere sempre sotto controllo il proprio stato di salute grazie a costanti controlli medici e analisi del sangue periodiche e gratuite! Ti garantiamo che la paura dell'ago si può superare facilmente!
+
+Naturalmente, avrai diritto all'assenza giustificata da scuola.
+
+La decisione di diventare donatore va, tuttavia, presa in modo consapevole. Per questo ti invitiamo a consultare i siti www.donareilsangue.it e www.fidas.it per ulteriori informazioni, e se dovessi avere qualunque domanda, non esitare a contattarci qui o su Instagram su @giovani_donatori_feltre.
+
+Non appena avrai deciso, ti preghiamo di rispondere a questa mail, COMUNICANDOCI se intendi partecipare o meno al nostro progetto${entro}, per motivi organizzativi, se possibile.
+
+Grazie mille!
+
+${FIRMA}`;
 }
 
-export function msgPensaci(c: Candidato): string {
-  const entro = c.scadenza_risposta ? ` entro ${fmtData(c.scadenza_risposta, "giorno")}` : "";
-  return `Ciao ${nome(c)}! Siamo il ${FIRMA}. Qualche settimana fa ci hai detto che volevi pensarci sulla donazione: hai dubbi o domande? Siamo qui per risponderti.\nSe ti va di partecipare al Progetto Scuole, rispondi a questo messaggio${entro} 🙂`;
-}
-
-export function testoMessaggio(tipo: TipoMessaggio, c: Candidato, dateLibere: string[]): string {
+export function testoMessaggio(tipo: TipoMessaggio, c: Candidato, imp: Impostazioni): string {
   switch (tipo) {
-    case "primo":
-      return msgPrimoContatto(c, dateLibere);
-    case "inserito":
-      return msgInserito(c, c.data_disponibilita);
-    case "confermato":
-      return msgConfermato(c, c.data_disponibilita);
-    case "promemoria":
-      return msgPromemoria(c, c.data_disponibilita);
-    case "pensaci":
-      return msgPensaci(c);
+    case "turno":
+      return msgTurno(c, c.data_disponibilita, imp);
+    case "promemoria_con":
+      return msgPromemoriaCon(imp);
+    case "promemoria_senza":
+      return msgPromemoriaSenza(imp);
+    case "indecisi":
+      return msgIndecisi(c.scadenza_risposta || null);
     default:
       return "";
   }
 }
 
-// ---------- Lista per il trasfusionale (solo i ragazzi che hanno confermato) ----------
+// ---------- Lista per il trasfusionale e i prof (solo i ragazzi confermati) ----------
 export function rigaTrasfusionale(c: Candidato, i: number, conTelefono: boolean): string {
   const parti = [
     `${i + 1}. ${(c.cognome || "").trim().toUpperCase()} ${maiuscolaIniziale(c.nome)}`,
@@ -84,18 +156,9 @@ export function msgListaTrasfusionale(t: Turno, conTelefono: boolean): string {
   return `${NOME_PROGETTO.toUpperCase()}\nTurno di ${fmtData(t.data, "lunga")} (${lista.length} ${lista.length === 1 ? "persona" : "persone"})\n\n${righe}`;
 }
 
-// ---------- Avviso ai professori ----------
+/** Oggetto della mail ai prof: il contenuto è solo la foto della lista */
 export function oggettoProf(data: string): string {
-  return `Assenza studenti ${fmtData(data, "giorno")} – visita per la donazione di sangue`;
-}
-
-export function msgProf(prof: Professore | null, scuola: string, data: string, studenti: Candidato[]): string {
-  const saluto = prof && (prof.cognome || prof.nome) ? `Gentile prof. ${maiuscolaIniziale(prof.cognome || prof.nome)},` : "Gentile professore/professoressa,";
-  const elenco = studenti
-    .map((s) => `• ${maiuscolaIniziale(s.nome)} ${maiuscolaIniziale(s.cognome)}${s.classe ? ` – classe ${s.classe.toUpperCase()}` : ""}`)
-    .join("\n");
-  const verbo = studenti.length === 1 ? "il seguente studente sarà assente perché impegnato" : "i seguenti studenti saranno assenti perché impegnati";
-  return `${saluto}\nle comunichiamo che ${fmtData(data, "lunga")} ${verbo} nella visita di idoneità alla donazione di sangue presso il ${CONFIG_TURNI.luogo}, nell'ambito del Progetto Scuole.\n\n${scuola}:\n${elenco}\n\nGrazie per la collaborazione.\n${FIRMA}`;
+  return `${NOME_PROGETTO} – turno di ${fmtData(data, "giorno")}`;
 }
 
 // ---------- Inizio anno: chiedere ai professori se partecipano ----------
@@ -105,5 +168,5 @@ export function oggettoInvitoProf(anno: string): string {
 
 export function msgInvitoProf(prof: Professore | null, anno: string): string {
   const saluto = prof && (prof.cognome || prof.nome) ? `Gentile prof. ${maiuscolaIniziale(prof.cognome || prof.nome)},` : "Gentile professore/professoressa,";
-  return `${saluto}\nanche per l'anno scolastico ${anno} il ${FIRMA} vorrebbe proporre il Progetto Scuole: un incontro con le classi sulla donazione di sangue e, per i ragazzi che aderiscono, l'accompagnamento alla visita di idoneità presso il ${CONFIG_TURNI.luogo}.\n\nLa vostra scuola è interessata a partecipare anche quest'anno? Se sì, ci può indicare le classi coinvolte e un periodo indicativo per l'incontro?\n\nGrazie e buon inizio d'anno!\n${FIRMA}`;
+  return `${saluto}\nanche per l'anno scolastico ${anno} il Gruppo Giovani Donatori Feltre vorrebbe proporre il Progetto Scuole: un incontro con le classi sulla donazione di sangue e, per i ragazzi che aderiscono, l'accompagnamento alla visita di idoneità presso il ${CONFIG_TURNI.luogo}.\n\nLa vostra scuola è interessata a partecipare anche quest'anno? Se sì, ci può indicare le classi coinvolte e un periodo indicativo per l'incontro?\n\nGrazie e buon inizio d'anno!\n${FIRMA}`;
 }
