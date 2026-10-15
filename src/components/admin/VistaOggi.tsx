@@ -137,8 +137,8 @@ const PERCORSO: { icona: string; testo: string; vista: Vista }[] = [
   { icona: "📣", testo: "Inizio anno: chiedi ai prof", vista: "rubrica" },
   { icona: "📝", testo: "Arrivano le risposte", vista: "contattare" },
   { icona: "📅", testo: "Scrivi ai ragazzi e mettili nei turni", vista: "contattare" },
-  { icona: "✅", testo: "I ragazzi confermano", vista: "turni" },
-  { icona: "📋", testo: "Nominativi a trasfusionale e prof", vista: "turni" },
+  { icona: "✅", testo: "Confermi tu i ragazzi", vista: "turni" },
+  { icona: "📸", testo: "Foto a trasfusionale e prof", vista: "turni" },
   { icona: "🔔", testo: "Promemoria il giorno prima", vista: "turni" },
 ];
 

@@ -36,27 +36,29 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
       <Blocco titolo="In breve: come funziona il Progetto Scuole">
         <ol className="list-decimal ml-5 space-y-2">
           <li>
-            <b>Inizio anno: chiedi ai prof se partecipano</b>. In <Link v="rubrica">Rubrica prof</Link>, nel riquadro 📣, c&apos;è il messaggio già pronto per ogni referente
-            (WhatsApp o email). Quando hai finito spunta &quot;Fatto&quot;.
+            <b>Inizio anno: chiedi ai prof se la scuola partecipa</b> al Progetto Scuole. In <Link v="rubrica">Rubrica prof</Link>, nel riquadro 📣, c&apos;è il messaggio già
+            pronto per ogni referente (WhatsApp o email). Quando hai finito spunta &quot;Fatto&quot;.
           </li>
           <li>
-            <b>Arrivano le risposte</b> dal modulo (la pagina pubblica del sito). Chi dice sì finisce in <Link v="contattare">Da contattare</Link>, chi vuole pensarci in{" "}
+            <b>Raccogli le risposte del modulo</b> (la pagina pubblica del sito). Chi dice sì finisce in <Link v="contattare">Da contattare</Link>, chi vuole pensarci in{" "}
             <Link v="pensano">Ci pensano</Link>, chi dice no solo in <Link v="archivio">Archivio</Link>.
           </li>
           <li>
-            <b>Scrivi ai ragazzi e mettili nei turni</b> (le date già concordate con il trasfusionale). In Da contattare tocca 💬 WhatsApp: il messaggio propone le date libere
-            in cui quel ragazzo può andare. Quando risponde tocca 📅 Metti in turno e scegli la data.
+            <b>Contatta i ragazzi e inseriscili nei turni</b>, cioè nelle date già concordate prima con il trasfusionale. In Da contattare tocca 💬 WhatsApp: il messaggio
+            propone le date libere in cui quel ragazzo può andare. Quando risponde tocca 📅 Metti in turno e scegli la data.
           </li>
           <li>
-            <b>I ragazzi confermano</b>. Nella pagina <Link v="turni">Turni</Link>, accanto a ogni nome: 💬 per chiedergli conferma, poi <b>✅ Segna confermato</b> (pallino verde)
-            oppure <b>✕ Togli</b> se non può, scrivendo il motivo e da quando ricontattarlo.
+            <b>Confermi tu i ragazzi</b>. Quando un ragazzo ti dice che è disponibile, nella pagina <Link v="turni">Turni</Link> tocca <b>✅ Segna confermato</b> accanto al suo
+            nome (il pallino diventa verde). Se non può, tocca <b>✕ Togli</b> e scrivi il motivo e da quando ricontattarlo. La conferma la dai tu (admin) in base alla
+            disponibilità del ragazzo: <b>non è il trasfusionale a confermare</b>.
           </li>
           <li>
-            <b>Mandi i nominativi al trasfusionale e ai prof</b>, solo di chi ha confermato: nel turno, 📋 Lista da fotografare per il trasfusionale e, per ogni scuola, il
-            messaggio pronto con nomi e classi per il prof. Spunta &quot;Inviata&quot; e &quot;Prof avvisati&quot;.
+            <b>Mandi la foto al trasfusionale e ai prof</b>. Nel turno tocca <b>📋 Lista da fotografare</b>: ci sono solo i ragazzi che hai confermato. Fai lo screenshot e manda
+            la stessa foto al trasfusionale e ai prof delle scuole coinvolte (i contatti dei prof sono al passo 3 del turno). <b>Arriva solo la foto</b> delle persone
+            coinvolte. Poi spunta &quot;Inviata&quot; e &quot;Prof avvisati&quot;.
           </li>
           <li>
-            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la visita (passo 4 del turno).
+            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la donazione (passo 4 del turno: c&apos;è un pulsante WhatsApp per ognuno).
           </li>
         </ol>
         <p className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-900">
@@ -85,6 +87,10 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
       </Blocco>
 
       <Blocco titolo="Domande frequenti">
+        <Domanda d="Il trasfusionale deve confermare qualcosa?">
+          No. Le date dei turni le concordi prima con il trasfusionale. Poi i ragazzi li confermi tu, in base a quello che ti dicono, e al trasfusionale mandi solo la foto
+          della lista.
+        </Domanda>
         <Domanda d="Un ragazzo non può più venire al turno">
           In Turni tocca <b>✕ Togli</b> accanto al suo nome, scrivi il motivo e se vuoi da quando ricontattarlo: torna tra i &quot;Da ricontattare&quot;. Per cambiargli data tocca il nome → <b>Sposta in un&apos;altra data</b>.
         </Domanda>
@@ -97,8 +103,12 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
         <Domanda d="Ho segnato per sbaglio che un ragazzo ha confermato">
           Nel turno tocca <b>↩ Annulla</b> accanto al suo nome (oppure dalla scheda: <b>↩ Annulla conferma</b>).
         </Domanda>
-        <Domanda d="Nel passo 'Nominativi ai professori' dice che non c'è nessun prof">
-          Vai in <Link v="rubrica">Rubrica prof</Link> e aggiungi il referente, scrivendo il nome della scuola <b>uguale a quello del modulo</b> (te lo suggerisce). Nel frattempo puoi usare &quot;Copia testo&quot;.
+        <Domanda d="Nel passo dei professori dice che non c'è nessun prof">
+          Vai in <Link v="rubrica">Rubrica prof</Link> e aggiungi il referente, scrivendo il nome della scuola <b>uguale a quello del modulo</b> (te lo suggerisce): così nel
+          turno trovi il suo contatto per mandargli la foto.
+        </Domanda>
+        <Domanda d="Un ragazzo conferma dopo che ho già mandato la foto">
+          Segnalo confermato, apri di nuovo 📋 Lista da fotografare e rimanda la foto aggiornata al trasfusionale e ai prof.
         </Domanda>
         <Domanda d="Come salvo i numeri nella rubrica del telefono?">
           In Da contattare tocca <b>Seleziona i non salvati</b> → <b>Scarica file</b>. Poi apri contacts.google.com → Importa → scegli il file. Le persone esportate non compaiono più come &quot;non salvato&quot;.
@@ -111,7 +121,7 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
           Sì: il messaggio si apre già scritto in WhatsApp/Gmail e puoi modificarlo prima di inviarlo. Nella scheda della persona puoi anche scegliere un altro messaggio pronto dal menu.
         </Domanda>
         <Domanda d="Le spunte 'Inviata' e 'Prof avvisati' non le vedo su un altro telefono">
-          Sono salvate solo sul dispositivo dove le hai messe (come la spunta &quot;Fatto&quot; dei prof a inizio anno). Le conferme dei ragazzi invece sono salvate per tutti.
+          Sono salvate solo sul dispositivo dove le hai messe (come la spunta &quot;Fatto&quot; dei prof a inizio anno). Le conferme che segni ai ragazzi invece sono salvate per tutti.
         </Domanda>
         <Domanda d="Come installo l'app sul telefono?">
           Su Android/Chrome usa il pulsante <b>Installa App</b> nel menu. Su iPhone: Safari → Condividi → &quot;Aggiungi alla schermata Home&quot;.
@@ -121,7 +131,7 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
       <Blocco titolo="🔒 Dati personali: attenzione">
         <ul className="list-disc ml-5 space-y-1">
           <li>Qui ci sono dati di ragazzi, anche minorenni, e informazioni sulla salute (ECG, donazioni). Usali solo per il progetto.</li>
-          <li>Manda la lista solo al trasfusionale e gli avvisi solo al prof della scuola giusta.</li>
+          <li>Manda la foto della lista solo al trasfusionale e ai prof delle scuole coinvolte.</li>
           <li>Cancella dal telefono gli screenshot e i file CSV quando non servono più.</li>
           <li>
             L&apos;accesso dura finché la scheda del browser è aperta. Su un dispositivo non tuo tocca sempre <b>Disconnetti</b>.

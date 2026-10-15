@@ -17,11 +17,11 @@ Web app per raccogliere le adesioni degli studenti alla donazione di sangue e or
 | # | Cosa succede | Dove | Cosa tocchi |
 |---|---|---|---|
 | 1 | **Inizio anno**: chiedi ai prof se la scuola partecipa | 👩‍🏫 **Rubrica prof** | riquadro **📣**: messaggio pronto per ogni referente (WhatsApp o Email) → spunta *Fatto* |
-| 2 | Arrivano le risposte dal modulo | 💬 **Da contattare** | — |
-| 3 | Scrivi ai ragazzi e li metti nei turni (date già concordate con il trasfusionale) | Da contattare | **💬 WhatsApp** (messaggio con le date libere *in cui quel ragazzo può andare*) → **📅 Metti in turno** → scegli la data |
-| 4 | **I ragazzi confermano** | 📅 **Turni** | per ogni ragazzo: 💬 per chiedergli conferma, poi **✅ Segna confermato** oppure **✕ Togli** (motivo + da quando ricontattarlo → torna in "Da ricontattare") |
-| 5 | Mandi i nominativi (solo chi ha confermato) al trasfusionale e ai prof | Turni | **📋 Lista da fotografare** → screenshot o *Copia testo* → spunta *Inviata*; per ogni scuola il messaggio pronto con nomi e classi → spunta *Prof avvisati* |
-| 6 | Il giorno prima mandi il promemoria | Turni | un pulsante WhatsApp per ogni ragazzo confermato |
+| 2 | Raccogli le risposte del modulo | 💬 **Da contattare** | — |
+| 3 | Contatti i ragazzi e li inserisci nei turni (date già concordate prima con il trasfusionale) | Da contattare | **💬 WhatsApp** (messaggio con le date libere *in cui quel ragazzo può andare*) → **📅 Metti in turno** → scegli la data |
+| 4 | **Confermi tu (admin) i ragazzi** in base alla loro disponibilità. Non è il trasfusionale a confermare | 📅 **Turni** | per ogni ragazzo: **✅ Segna confermato** quando ti dice che c'è, oppure **✕ Togli** (motivo + da quando ricontattarlo → torna in "Da ricontattare") |
+| 5 | Mandi **solo la foto** delle persone coinvolte al trasfusionale e ai prof | Turni | **📋 Lista da fotografare** (solo i confermati) → screenshot → la stessa foto al trasfusionale e ai prof delle scuole coinvolte (contatti al passo 3) → spunta *Inviata* e *Prof avvisati* |
+| 6 | Il giorno prima mandi il promemoria ai ragazzi che fanno la donazione | Turni | un pulsante WhatsApp per ogni ragazzo confermato |
 
 ### Le pagine
 

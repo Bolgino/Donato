@@ -48,7 +48,7 @@ export default function VistaRubrica({
       <Istruzioni id="rubrica">
         <p>
           I professori referenti di ogni scuola. Servono a <b>inizio anno</b> per chiedere se la scuola partecipa al progetto (riquadro 📣 qui sotto) e nella pagina Turni
-          per mandare i nominativi dei ragazzi già scritti.
+          per mandargli la foto con i ragazzi del turno.
         </p>
         <p>
           Scrivi il nome della <b>scuola uguale a quello del modulo</b> (te lo suggerisce mentre scrivi): così il prof viene abbinato da solo ai suoi studenti.

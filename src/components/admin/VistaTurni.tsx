@@ -448,21 +448,22 @@ export default function VistaTurni({
         <p>I turni sono le date già concordate con il trasfusionale. Ogni turno ha 4 passi, da fare in ordine:</p>
         <ol className="list-decimal ml-5 space-y-1">
           <li>
-            <b>Chiedi ai ragazzi se ci sono</b>: 💬 WhatsApp accanto al nome (il messaggio chiede di confermare). Per <b>ogni ragazzo</b> tocca <b>✅ Segna confermato</b>{" "}
-            oppure <b>✕ Togli</b> (con il motivo, es. &quot;meno di 50 kg&quot;, e da quando ricontattarlo: tornerà tra i &quot;Da ricontattare&quot;).
+            <b>Conferma tu i ragazzi</b>: chiedi a ognuno se è disponibile (💬 WhatsApp accanto al nome). Quando ti dice di sì tocca <b>✅ Segna confermato</b>, se non può
+            tocca <b>✕ Togli</b> (con il motivo, es. &quot;meno di 50 kg&quot;, e da quando ricontattarlo: tornerà tra i &quot;Da ricontattare&quot;). La conferma la dai tu,
+            non il trasfusionale.
           </li>
           <li>
-            <b>Nominativi al trasfusionale</b>: apri la lista (solo chi ha confermato), fai uno screenshot o copia il testo e mandala. Poi spunta &quot;Inviata&quot;.
+            <b>Foto al trasfusionale</b>: apri la lista (solo chi hai confermato), fai lo screenshot e mandalo. Poi spunta &quot;Inviata&quot;.
           </li>
           <li>
-            <b>Nominativi ai prof</b>: per ogni scuola c&apos;è il messaggio pronto con nomi e classi (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
+            <b>Stessa foto ai prof</b> delle scuole coinvolte: al passo 3 trovi i loro contatti (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
           </li>
           <li>
-            Il giorno prima manda il <b>promemoria</b> ai ragazzi.
+            Il giorno prima manda il <b>promemoria</b> ai ragazzi che il giorno dopo fanno la donazione.
           </li>
         </ol>
         <p className="text-xs">
-          Il pallino <span className="text-amber-500">●</span> giallo = il ragazzo deve ancora confermare, <span className="text-green-600">●</span> verde = ha confermato. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
+          Il pallino <span className="text-amber-500">●</span> giallo = non ancora confermato, <span className="text-green-600">●</span> verde = confermato da te. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
           Le spunte &quot;Inviata&quot; e &quot;Prof avvisati&quot; restano salvate su questo dispositivo.
         </p>
       </Istruzioni>
