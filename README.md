@@ -12,25 +12,24 @@ Web app per raccogliere le adesioni degli studenti alla donazione di sangue e or
 > Le stesse istruzioni sono anche dentro l'app, nella pagina **❓ Guida**, e ogni pagina ha un riquadro **💡 Cosa fare qui**.
 > Se non sai da dove iniziare apri **🏠 Oggi**: elenca cosa c'è da fare adesso, con un pulsante per ogni cosa.
 
-### Il percorso di ogni ragazzo
+### Il percorso dell'anno
 
 | # | Cosa succede | Dove | Cosa tocchi |
 |---|---|---|---|
-| 1 | Arriva la risposta dal modulo | 💬 **Da contattare** | — |
-| 2 | Gli scrivi su WhatsApp | Da contattare | **💬 WhatsApp**: la chat si apre con il messaggio già scritto e le prime date libere *in cui quella persona può andare* |
-| 3 | Quando risponde lo metti in un turno | Da contattare | **📅 Metti in turno** → scegli la data |
-| 4 | Mandi la lista al trasfusionale | 📅 **Turni** | **📋 Lista da fotografare** → screenshot (oppure *Copia testo*) → spunta *Inviata* |
-| 5 | Il trasfusionale conferma | Turni | **persona per persona**: **✅ Conferma** se accettata, **✕ Togli** se no (motivo + da quando ricontattarla → torna in "Da ricontattare") |
-| 6 | Avvisi i prof che i ragazzi saranno assenti | Turni | per ogni scuola c'è il messaggio pronto con nomi e classi → **WhatsApp** o **Email** → spunta *Prof avvisati* |
-| 7 | Il giorno prima mandi il promemoria | Turni | un pulsante WhatsApp per ogni ragazzo |
+| 1 | **Inizio anno**: chiedi ai prof se la scuola partecipa | 👩‍🏫 **Rubrica prof** | riquadro **📣**: messaggio pronto per ogni referente (WhatsApp o Email) → spunta *Fatto* |
+| 2 | Arrivano le risposte dal modulo | 💬 **Da contattare** | — |
+| 3 | Scrivi ai ragazzi e li metti nei turni (date già concordate con il trasfusionale) | Da contattare | **💬 WhatsApp** (messaggio con le date libere *in cui quel ragazzo può andare*) → **📅 Metti in turno** → scegli la data |
+| 4 | **I ragazzi confermano** | 📅 **Turni** | per ogni ragazzo: 💬 per chiedergli conferma, poi **✅ Segna confermato** oppure **✕ Togli** (motivo + da quando ricontattarlo → torna in "Da ricontattare") |
+| 5 | Mandi i nominativi (solo chi ha confermato) al trasfusionale e ai prof | Turni | **📋 Lista da fotografare** → screenshot o *Copia testo* → spunta *Inviata*; per ogni scuola il messaggio pronto con nomi e classi → spunta *Prof avvisati* |
+| 6 | Il giorno prima mandi il promemoria | Turni | un pulsante WhatsApp per ogni ragazzo confermato |
 
 ### Le pagine
 
 - **🏠 Oggi** – la lista delle cose da fare: nuove risposte, persone da ricontattare, liste da mandare, turni da confermare, prof da avvisare, promemoria.
 - **💬 Da contattare** – chi ha detto sì (nuovi, già donatori, da ricontattare) e non è ancora in un turno. Da qui anche l'export per **Google Contatti** (*Seleziona i non salvati → Scarica file*, poi contacts.google.com → Importa).
-- **📅 Turni** – un riquadro per ogni data (come i blocchi "Turno M14/10" dell'Excel) con i 4 passi: lista, conferma di ogni persona, prof, promemoria. Pallino giallo = da confermare, verde = confermato. I turni passati sono in fondo.
+- **📅 Turni** – un riquadro per ogni data (come i blocchi "Turno M14/10" dell'Excel) con i 4 passi: conferme dei ragazzi, nominativi al trasfusionale, nominativi ai prof, promemoria. Pallino giallo = il ragazzo deve ancora confermare, verde = ha confermato. I turni passati sono in fondo.
 - **🤔 Ci pensano** – chi ha risposto "Voglio pensarci". Dopo un mese scrivigli, imposta una scadenza, poi *Vuole partecipare* (va in Da contattare) o *Non interessato* (va in archivio).
-- **👩‍🏫 Rubrica prof** – i referenti delle scuole. Scrivi il nome della scuola **uguale a quello del modulo** (te lo suggerisce): così l'avviso viene abbinato da solo.
+- **👩‍🏫 Rubrica prof** – i referenti delle scuole, con il riquadro 📣 di inizio anno per chiedere se la scuola partecipa. Scrivi il nome della scuola **uguale a quello del modulo** (te lo suggerisce): così l'avviso viene abbinato da solo.
 - **🗂 Archivio** – tutte le risposte (anche i "No"), export Excel per anno scolastico, eliminazione.
 - **📊 Statistiche** – **accompagnati per anno scolastico e per scuola** (come il foglio "Rendimento annuale" dell'Excel, calcolati sulle persone confermate: già andate + in programma, con la % sulle risposte "sì"), più le risposte per scuola.
 
@@ -78,7 +77,7 @@ npm run dev     # http://localhost:3000 (modulo) e http://localhost:3000/admin
 | `src/app/page.tsx` | modulo pubblico |
 | `src/app/admin/page.tsx` | area admin: login, caricamento dati, scelta della pagina |
 | `src/lib/donato.ts` | **tutta la logica**: fasi, regole dei turni, idoneità, link WhatsApp/Gmail, export CSV. In cima c'è `CONFIG_TURNI` (giorni, posti, preavviso, luogo) |
-| `src/lib/messaggi.ts` | **testi dei messaggi** WhatsApp/email (primo contatto, turno, promemoria, lista trasfusionale, avviso prof) |
+| `src/lib/messaggi.ts` | **testi dei messaggi** WhatsApp/email (invito ai prof a inizio anno, primo contatto, richiesta di conferma, promemoria, lista trasfusionale, nominativi ai prof) |
 | `src/lib/scuole.ts` | elenco scuole del modulo (usato anche dalla rubrica) |
 | `src/components/admin/Vista*.tsx` | una pagina dell'area admin per file |
 | `src/components/admin/SchedaPersona.tsx` | la scheda che si apre toccando un nome |
@@ -93,8 +92,8 @@ L'area admin usa le stesse colonne e gli stessi valori di sempre (nessuna migraz
 |---|---|
 | `Da Valutare`, `In Attesa` (o vuoto) | Da contattare |
 | `Da Ricontattare` (+ `data_ricontatto`, `note_ricontatto`) | Da contattare → filtro "Da ricontattare" |
-| `Contattato` (+ `data_disponibilita`) | Turni, da confermare |
-| `Confermato` (+ `data_disponibilita`) | Turni, confermato |
+| `Contattato` (+ `data_disponibilita`) | Turni, il ragazzo deve ancora confermare |
+| `Confermato` (+ `data_disponibilita`) | Turni, il ragazzo ha confermato |
 
 ### Sicurezza (da controllare su Supabase)
 

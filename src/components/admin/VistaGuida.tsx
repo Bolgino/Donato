@@ -33,29 +33,30 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <Blocco titolo="In breve: il percorso di ogni ragazzo">
+      <Blocco titolo="In breve: come funziona il Progetto Scuole">
         <ol className="list-decimal ml-5 space-y-2">
+          <li>
+            <b>Inizio anno: chiedi ai prof se partecipano</b>. In <Link v="rubrica">Rubrica prof</Link>, nel riquadro 📣, c&apos;è il messaggio già pronto per ogni referente
+            (WhatsApp o email). Quando hai finito spunta &quot;Fatto&quot;.
+          </li>
           <li>
             <b>Arrivano le risposte</b> dal modulo (la pagina pubblica del sito). Chi dice sì finisce in <Link v="contattare">Da contattare</Link>, chi vuole pensarci in{" "}
             <Link v="pensano">Ci pensano</Link>, chi dice no solo in <Link v="archivio">Archivio</Link>.
           </li>
           <li>
-            <b>Scrivi su WhatsApp</b>: in Da contattare tocca 💬 WhatsApp. Si apre la chat con il messaggio già scritto e le prime date libere in cui quella persona può andare.
+            <b>Scrivi ai ragazzi e mettili nei turni</b> (le date già concordate con il trasfusionale). In Da contattare tocca 💬 WhatsApp: il messaggio propone le date libere
+            in cui quel ragazzo può andare. Quando risponde tocca 📅 Metti in turno e scegli la data.
           </li>
           <li>
-            <b>Mettilo nel turno</b>: quando risponde tocca 📅 Metti in turno e scegli la data. Ora è nella pagina <Link v="turni">Turni</Link> con il pallino giallo (da confermare).
+            <b>I ragazzi confermano</b>. Nella pagina <Link v="turni">Turni</Link>, accanto a ogni nome: 💬 per chiedergli conferma, poi <b>✅ Segna confermato</b> (pallino verde)
+            oppure <b>✕ Togli</b> se non può, scrivendo il motivo e da quando ricontattarlo.
           </li>
           <li>
-            <b>Manda la lista al trasfusionale</b>: nel turno tocca 📋 Lista da fotografare, fai uno screenshot e mandalo (o usa Copia testo). Spunta &quot;Inviata&quot;.
+            <b>Mandi i nominativi al trasfusionale e ai prof</b>, solo di chi ha confermato: nel turno, 📋 Lista da fotografare per il trasfusionale e, per ogni scuola, il
+            messaggio pronto con nomi e classi per il prof. Spunta &quot;Inviata&quot; e &quot;Prof avvisati&quot;.
           </li>
           <li>
-            <b>Conferma le persone</b>: quando il trasfusionale risponde, nel turno tocca ✅ Conferma accanto a ogni persona accettata (il pallino diventa verde) e ✕ Togli per chi non può, scrivendo il motivo e da quando ricontattarla.
-          </li>
-          <li>
-            <b>Avvisa i prof</b>: nel turno, al passo 3, per ogni scuola c&apos;è il messaggio pronto con nomi e classi. Mandalo via WhatsApp o email e spunta &quot;Prof avvisati&quot;.
-          </li>
-          <li>
-            <b>Il giorno prima</b> manda il promemoria ai ragazzi (passo 4 del turno).
+            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la visita (passo 4 del turno).
           </li>
         </ol>
         <p className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-900">
@@ -87,16 +88,16 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
         <Domanda d="Un ragazzo non può più venire al turno">
           In Turni tocca <b>✕ Togli</b> accanto al suo nome, scrivi il motivo e se vuoi da quando ricontattarlo: torna tra i &quot;Da ricontattare&quot;. Per cambiargli data tocca il nome → <b>Sposta in un&apos;altra data</b>.
         </Domanda>
-        <Domanda d="Il trasfusionale propone una data diversa">
+        <Domanda d="Un turno concordato con il trasfusionale non è martedì o giovedì">
           Nella scheda, sotto le date, tocca <b>&quot;Altra data concordata con il trasfusionale…&quot;</b> e scegli il giorno. Per spostare tutto un turno, sposta le persone una alla volta.
         </Domanda>
         <Domanda d="Il turno è pieno ma devo aggiungere qualcuno">
           Le date piene non vengono proposte, ma con &quot;Altra data…&quot; puoi sceglierla lo stesso: l&apos;app ti chiede conferma.
         </Domanda>
-        <Domanda d="Ho confermato per sbaglio">
+        <Domanda d="Ho segnato per sbaglio che un ragazzo ha confermato">
           Nel turno tocca <b>↩ Annulla</b> accanto al suo nome (oppure dalla scheda: <b>↩ Annulla conferma</b>).
         </Domanda>
-        <Domanda d="Nel passo 'Avvisa i prof' dice che non c'è nessun prof">
+        <Domanda d="Nel passo 'Nominativi ai professori' dice che non c'è nessun prof">
           Vai in <Link v="rubrica">Rubrica prof</Link> e aggiungi il referente, scrivendo il nome della scuola <b>uguale a quello del modulo</b> (te lo suggerisce). Nel frattempo puoi usare &quot;Copia testo&quot;.
         </Domanda>
         <Domanda d="Come salvo i numeri nella rubrica del telefono?">
@@ -110,7 +111,7 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
           Sì: il messaggio si apre già scritto in WhatsApp/Gmail e puoi modificarlo prima di inviarlo. Nella scheda della persona puoi anche scegliere un altro messaggio pronto dal menu.
         </Domanda>
         <Domanda d="Le spunte 'Inviata' e 'Prof avvisati' non le vedo su un altro telefono">
-          Sono salvate solo sul dispositivo dove le hai messe. La conferma del turno invece è salvata per tutti.
+          Sono salvate solo sul dispositivo dove le hai messe (come la spunta &quot;Fatto&quot; dei prof a inizio anno). Le conferme dei ragazzi invece sono salvate per tutti.
         </Domanda>
         <Domanda d="Come installo l'app sul telefono?">
           Su Android/Chrome usa il pulsante <b>Installa App</b> nel menu. Su iPhone: Safari → Condividi → &quot;Aggiungi alla schermata Home&quot;.

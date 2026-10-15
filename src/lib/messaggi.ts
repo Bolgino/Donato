@@ -13,8 +13,8 @@ export type TipoMessaggio = "primo" | "inserito" | "confermato" | "promemoria" |
 
 export const ETICHETTA_MESSAGGIO: Record<TipoMessaggio, string> = {
   primo: "Primo contatto (con le date libere)",
-  inserito: "Ti abbiamo messo nel turno",
-  confermato: "Turno confermato",
+  inserito: "Inserito nel turno: ci confermi?",
+  confermato: "Hai confermato: grazie",
   promemoria: "Promemoria il giorno prima",
   pensaci: "Per chi ci stava pensando",
   vuoto: "Chat vuota",
@@ -29,12 +29,14 @@ export function msgPrimoContatto(c: Candidato, date: string[]): string {
   return `${saluto}\n\nPer la visita di idoneità al ${CONFIG_TURNI.luogo} abbiamo queste date libere:\n${elenco}\n\nQuale ti va meglio? Rispondi pure qui 🙂`;
 }
 
+/** Chiede al ragazzo di confermare la sua disponibilità per il turno */
 export function msgInserito(c: Candidato, data: string | null): string {
-  return `Perfetto ${nome(c)}! Ti abbiamo segnato per ${data ? fmtData(data, "giorno") : "il turno"} al ${CONFIG_TURNI.luogo}. Appena il trasfusionale ci conferma il turno ti scriviamo 👍`;
+  return `Ciao ${nome(c)}! Ti abbiamo inserito nel turno di ${data ? fmtData(data, "giorno") : "visita"} per la visita di idoneità al ${CONFIG_TURNI.luogo}.\nCi confermi che ci sei? Rispondi qui con un sì 👍 Se invece non puoi, dimmelo e troviamo un'altra data.`;
 }
 
+/** Dopo che il ragazzo ha confermato */
 export function msgConfermato(c: Candidato, data: string | null): string {
-  return `Ciao ${nome(c)}! Il tuo turno di ${data ? fmtData(data, "giorno") : "visita"} al ${CONFIG_TURNI.luogo} è confermato ✅\nAvvisiamo noi i professori della tua assenza. Per qualsiasi dubbio scrivici qui!`;
+  return `Perfetto ${nome(c)}, sei confermato per ${data ? fmtData(data, "giorno") : "la visita"} al ${CONFIG_TURNI.luogo} ✅\nComunichiamo noi il tuo nome al trasfusionale e ai professori. Il giorno prima ti mandiamo un promemoria. Per qualsiasi dubbio scrivici qui!`;
 }
 
 export function msgPromemoria(c: Candidato, data: string | null): string {
@@ -63,7 +65,7 @@ export function testoMessaggio(tipo: TipoMessaggio, c: Candidato, dateLibere: st
   }
 }
 
-// ---------- Lista per il trasfusionale ----------
+// ---------- Lista per il trasfusionale (solo i ragazzi che hanno confermato) ----------
 export function rigaTrasfusionale(c: Candidato, i: number, conTelefono: boolean): string {
   const parti = [
     `${i + 1}. ${(c.cognome || "").trim().toUpperCase()} ${maiuscolaIniziale(c.nome)}`,
@@ -77,8 +79,9 @@ export function rigaTrasfusionale(c: Candidato, i: number, conTelefono: boolean)
 }
 
 export function msgListaTrasfusionale(t: Turno, conTelefono: boolean): string {
-  const righe = t.persone.map((c, i) => rigaTrasfusionale(c, i, conTelefono)).join("\n");
-  return `${NOME_PROGETTO.toUpperCase()}\nTurno di ${fmtData(t.data, "lunga")} (${t.persone.length} ${t.persone.length === 1 ? "persona" : "persone"})\n\n${righe}`;
+  const lista = t.confermati;
+  const righe = lista.map((c, i) => rigaTrasfusionale(c, i, conTelefono)).join("\n");
+  return `${NOME_PROGETTO.toUpperCase()}\nTurno di ${fmtData(t.data, "lunga")} (${lista.length} ${lista.length === 1 ? "persona" : "persone"})\n\n${righe}`;
 }
 
 // ---------- Avviso ai professori ----------
@@ -93,4 +96,14 @@ export function msgProf(prof: Professore | null, scuola: string, data: string, s
     .join("\n");
   const verbo = studenti.length === 1 ? "il seguente studente sarà assente perché impegnato" : "i seguenti studenti saranno assenti perché impegnati";
   return `${saluto}\nle comunichiamo che ${fmtData(data, "lunga")} ${verbo} nella visita di idoneità alla donazione di sangue presso il ${CONFIG_TURNI.luogo}, nell'ambito del Progetto Scuole.\n\n${scuola}:\n${elenco}\n\nGrazie per la collaborazione.\n${FIRMA}`;
+}
+
+// ---------- Inizio anno: chiedere ai professori se partecipano ----------
+export function oggettoInvitoProf(anno: string): string {
+  return `Progetto Scuole ${anno} – Giovani Donatori Feltre`;
+}
+
+export function msgInvitoProf(prof: Professore | null, anno: string): string {
+  const saluto = prof && (prof.cognome || prof.nome) ? `Gentile prof. ${maiuscolaIniziale(prof.cognome || prof.nome)},` : "Gentile professore/professoressa,";
+  return `${saluto}\nanche per l'anno scolastico ${anno} il ${FIRMA} vorrebbe proporre il Progetto Scuole: un incontro con le classi sulla donazione di sangue e, per i ragazzi che aderiscono, l'accompagnamento alla visita di idoneità presso il ${CONFIG_TURNI.luogo}.\n\nLa vostra scuola è interessata a partecipare anche quest'anno? Se sì, ci può indicare le classi coinvolte e un periodo indicativo per l'incontro?\n\nGrazie e buon inizio d'anno!\n${FIRMA}`;
 }

@@ -7,7 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { Candidato, Professore } from "@/types/admin";
-import { calcolaAnnoScolastico, faseDi, leggiSpunte, raggruppaTurni, scriviSpunte, SpuntaTurno } from "@/lib/donato";
+import { annoScolasticoDi, calcolaAnnoScolastico, faseDi, leggiPreferenza, leggiSpunte, oggiISO, raggruppaTurni, scriviPreferenza, scriviSpunte, SpuntaTurno } from "@/lib/donato";
 import Sidebar, { VOCI_MENU } from "@/components/admin/Sidebar";
 import SchedaPersona from "@/components/admin/SchedaPersona";
 import VistaOggi, { calcolaCompiti } from "@/components/admin/VistaOggi";
@@ -39,6 +39,9 @@ export default function AdminDashboard() {
   const [schedaId, setSchedaId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [spunte, setSpunte] = useState<Record<string, SpuntaTurno>>({});
+  // "Ho chiesto ai prof se partecipano" per l'anno scolastico in corso (salvato su questo dispositivo)
+  const annoCorrente = annoScolasticoDi(oggiISO());
+  const [profInvitati, setProfInvitatiStato] = useState(false);
   const contenutoRef = useRef<HTMLDivElement>(null);
 
   // Cambiando pagina si riparte dall'alto
@@ -65,6 +68,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setSpunte(leggiSpunte());
+    setProfInvitatiStato(leggiPreferenza("prof-invitati-" + annoScolasticoDi(oggiISO()), false));
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchData(true);
@@ -167,6 +171,11 @@ export default function AdminDashboard() {
     return true;
   };
 
+  const setProfInvitati = (v: boolean) => {
+    setProfInvitatiStato(v);
+    scriviPreferenza("prof-invitati-" + annoCorrente, v);
+  };
+
   const setSpunta = (data: string, s: SpuntaTurno) => {
     const nuove = { ...spunte, [data]: s };
     setSpunte(nuove);
@@ -182,7 +191,7 @@ export default function AdminDashboard() {
     [candidature],
   );
   const datiAnno = annoAttivo === "Tutti" ? candidature : candidature.filter((c) => calcolaAnnoScolastico(c.created_at) === annoAttivo);
-  const compiti = calcolaCompiti(daContattare, turni, pensano, spunte);
+  const compiti = calcolaCompiti(daContattare, turni, pensano, spunte, profInvitati);
   const scheda = schedaId ? candidature.find((c) => c.id === schedaId) : undefined;
 
   const conteggi: Partial<Record<Vista, number>> = {
@@ -277,11 +286,11 @@ export default function AdminDashboard() {
             <p className="text-center text-slate-400 py-20">Caricamento…</p>
           ) : (
             <>
-              {vista === "oggi" && <VistaOggi daContattare={daContattare} turni={turni} pensano={pensano} spunte={spunte} azioni={azioni} />}
+              {vista === "oggi" && <VistaOggi daContattare={daContattare} turni={turni} pensano={pensano} spunte={spunte} profInvitati={profInvitati} azioni={azioni} />}
               {vista === "contattare" && <VistaDaContattare lista={daContattare} tutti={candidature} azioni={azioni} ricerca={ricerca} />}
               {vista === "turni" && <VistaTurni turni={turni} profs={professori} azioni={azioni} ricerca={ricerca} spunte={spunte} setSpunta={setSpunta} />}
               {vista === "pensano" && <VistaCiPensano lista={pensano} azioni={azioni} ricerca={ricerca} />}
-              {vista === "rubrica" && <VistaRubrica profs={professori} ricerca={ricerca} salva={salvaProf} elimina={eliminaProf} />}
+              {vista === "rubrica" && <VistaRubrica profs={professori} ricerca={ricerca} salva={salvaProf} elimina={eliminaProf} anno={annoCorrente} invitati={profInvitati} setInvitati={setProfInvitati} />}
               {vista === "archivio" && <VistaArchivio lista={datiAnno} annoAttivo={annoAttivo} azioni={azioni} ricerca={ricerca} />}
               {vista === "statistiche" && <VistaStatistiche dati={datiAnno} candidature={candidature} annoAttivo={annoAttivo} />}
               {vista === "guida" && <VistaGuida vaiA={azioni.vaiA} />}

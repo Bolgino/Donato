@@ -127,7 +127,7 @@ export const isNo = (t?: string | null) => t === "No" || t === "NO";
 export type Fase =
   | "da_contattare" // nuova risposta, o tornata disponibile
   | "da_ricontattare" // da risentire più avanti
-  | "in_turno" // messa in un turno, manca la conferma del trasfusionale
+  | "in_turno" // messa in un turno, il ragazzo deve ancora confermare
   | "confermato" // turno confermato
   | "ci_pensa" // ha risposto "Voglio pensarci"
   | "no" // ha detto no
@@ -151,8 +151,8 @@ export function faseDi(c: Candidato): Fase {
 export const ETICHETTA_FASE: Record<Fase, string> = {
   da_contattare: "Da contattare",
   da_ricontattare: "Da ricontattare",
-  in_turno: "In turno · da confermare",
-  confermato: "Turno confermato",
+  in_turno: "In turno · deve confermare",
+  confermato: "Ha confermato il turno",
   ci_pensa: "Ci sta pensando",
   no: "Ha detto no",
   altro: "—",

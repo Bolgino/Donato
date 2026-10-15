@@ -62,16 +62,23 @@ function FoglioTrasfusionale({ t, onClose, onInviata }: { t: Turno; onClose: () 
           </button>
         </div>
 
+        {t.daConfermare.length > 0 && (
+          <p className="text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-2">
+            ⚠️ {t.daConfermare.length} {t.daConfermare.length === 1 ? "ragazzo non ha" : "ragazzi non hanno"} ancora confermato e non{" "}
+            {t.daConfermare.length === 1 ? "è" : "sono"} in questa lista: {t.daConfermare.map((c) => nomeCompleto(c)).join(", ")}.
+          </p>
+        )}
+
         {/* Il foglio */}
         <div className="border-2 border-slate-800 rounded-xl p-4 md:p-6 bg-white">
           <p className="text-[11px] font-black uppercase tracking-widest text-red-600">{NOME_PROGETTO}</p>
           <h3 className="text-xl md:text-2xl font-black text-slate-900 mt-1">Turno di {fmtData(t.data, "lunga")}</h3>
           <p className="text-xs text-slate-500 mb-4">
-            {CONFIG_TURNI.luogo} · {t.persone.length} {t.persone.length === 1 ? "persona" : "persone"}
+            {CONFIG_TURNI.luogo} · {t.confermati.length} {t.confermati.length === 1 ? "persona" : "persone"}
           </p>
           {/* Telefono: elenco a righe, così entra tutto nello screenshot */}
           <ol className="sm:hidden divide-y divide-slate-200 border-t-2 border-slate-800">
-            {t.persone.map((c, i) => (
+            {t.confermati.map((c, i) => (
               <li key={c.id} className="py-2.5">
                 <p className="font-black text-slate-900 text-base">
                   <span className="text-slate-400 font-bold mr-1.5">{i + 1}.</span>
@@ -105,7 +112,7 @@ function FoglioTrasfusionale({ t, onClose, onInviata }: { t: Turno; onClose: () 
                 </tr>
               </thead>
               <tbody>
-                {t.persone.map((c, i) => (
+                {t.confermati.map((c, i) => (
                   <tr key={c.id} className="border-b border-slate-200">
                     <td className="py-2.5 pr-2 font-bold text-slate-400">{i + 1}</td>
                     <td className="py-2.5 pr-2 font-black text-slate-900 text-base">
@@ -291,8 +298,8 @@ function RigaTurno({ c, azioni }: { c: Candidato; azioni: Azioni }) {
               </Bottone>
             </>
           ) : (
-            <Bottone tipo="ok" onClick={() => cambiaStato("Confermato")} disabled={inCorso}>
-              ✅ Conferma
+            <Bottone tipo="blu" onClick={() => cambiaStato("Confermato")} disabled={inCorso} title="Il ragazzo ha confermato che ci sarà">
+              ✅ Segna confermato
             </Bottone>
           )}
           <Bottone tipo="pericolo" onClick={() => setTogli(!togli)} disabled={inCorso}>
@@ -361,28 +368,35 @@ function CardTurno({
       </ul>
 
       <div className="p-4 space-y-4 border-t border-slate-200 bg-slate-50/60">
-        <Passo n={1} titolo="Manda la lista al trasfusionale" fatto={!!spunta.lista}>
-          <div className="flex flex-wrap items-center gap-2">
-            <Bottone onClick={() => setFoglio(true)}>📋 Lista da fotografare</Bottone>
-            <Bottone onClick={() => copia(msgListaTrasfusionale(t, false), "Elenco")}>Copia testo</Bottone>
-            <CasellaFatto checked={!!spunta.lista} onChange={(v) => setSpunta({ ...spunta, lista: v })} testo="Inviata" />
-          </div>
-        </Passo>
-
-        <Passo n={2} titolo="Segna chi ha confermato il trasfusionale" fatto={tuttoConfermato}>
+        <Passo n={1} titolo="Chiedi ai ragazzi se ci sono" fatto={tuttoConfermato}>
           {tuttoConfermato ? (
-            <p className="text-xs text-slate-500">Tutti confermati ✓</p>
+            <p className="text-xs text-slate-500">Hanno confermato tutti ✓</p>
           ) : (
             <p className="text-xs text-slate-600">
-              Persona per persona, qui sopra: <b>✅ Conferma</b> se il trasfusionale l&apos;ha accettata, <b>✕ Togli</b> se non può (scrivi il motivo e da quando
-              ricontattarla). Mancano <b>{t.daConfermare.length}</b>.
+              Scrivi a ciascuno con 💬 WhatsApp (il messaggio chiede già di confermare). Poi, qui sopra: <b>✅ Segna confermato</b> se ci sarà, <b>✕ Togli</b> se non
+              può (scrivi il motivo e da quando ricontattarlo). Mancano <b>{t.daConfermare.length}</b>.
             </p>
           )}
         </Passo>
 
-        <Passo n={3} titolo="Avvisa i professori che i ragazzi saranno assenti" fatto={!!spunta.prof} spento={t.confermati.length === 0}>
+        <Passo n={2} titolo="Manda i nominativi al trasfusionale" fatto={!!spunta.lista} spento={t.confermati.length === 0}>
           {t.confermati.length === 0 ? (
-            <p className="text-xs text-slate-500">Compare quando almeno una persona è confermata.</p>
+            <p className="text-xs text-slate-500">Si attiva quando almeno un ragazzo ha confermato.</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <Bottone onClick={() => setFoglio(true)}>📋 Lista da fotografare ({t.confermati.length})</Bottone>
+                <Bottone onClick={() => copia(msgListaTrasfusionale(t, false), "Elenco")}>Copia testo</Bottone>
+                <CasellaFatto checked={!!spunta.lista} onChange={(v) => setSpunta({ ...spunta, lista: v })} testo="Inviata" />
+              </div>
+              <p className="text-[11px] text-slate-500">Nella lista ci sono solo i ragazzi che hanno confermato. Se ne conferma un altro dopo, rimanda la lista aggiornata.</p>
+            </>
+          )}
+        </Passo>
+
+        <Passo n={3} titolo="Manda i nominativi ai professori" fatto={!!spunta.prof} spento={t.confermati.length === 0}>
+          {t.confermati.length === 0 ? (
+            <p className="text-xs text-slate-500">Si attiva quando almeno un ragazzo ha confermato.</p>
           ) : (
             <>
               <AvvisoProf t={t} profs={profs} azioni={azioni} />
@@ -398,7 +412,7 @@ function CardTurno({
                 {maiuscolaIniziale(c.nome) || "Promemoria"}
               </LinkWhatsApp>
             ))}
-            {t.confermati.length === 0 && <p className="text-xs text-slate-500">Dopo la conferma qui trovi i messaggi di promemoria già pronti.</p>}
+            {t.confermati.length === 0 && <p className="text-xs text-slate-500">Quando i ragazzi confermano, qui trovi i messaggi di promemoria già pronti.</p>}
           </div>
         </Passo>
       </div>
@@ -431,24 +445,24 @@ export default function VistaTurni({
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <Istruzioni id="turni">
-        <p>Ogni turno ha 4 passi, da fare in ordine:</p>
+        <p>I turni sono le date già concordate con il trasfusionale. Ogni turno ha 4 passi, da fare in ordine:</p>
         <ol className="list-decimal ml-5 space-y-1">
           <li>
-            <b>Lista al trasfusionale</b>: apri la lista, fai uno screenshot (o copia il testo) e mandala. Poi spunta &quot;Inviata&quot;.
+            <b>Chiedi ai ragazzi se ci sono</b>: 💬 WhatsApp accanto al nome (il messaggio chiede di confermare). Per <b>ogni ragazzo</b> tocca <b>✅ Segna confermato</b>{" "}
+            oppure <b>✕ Togli</b> (con il motivo, es. &quot;meno di 50 kg&quot;, e da quando ricontattarlo: tornerà tra i &quot;Da ricontattare&quot;).
           </li>
           <li>
-            Quando il trasfusionale risponde, per <b>ogni persona</b> tocca <b>✅ Conferma</b> oppure <b>✕ Togli</b> (con il motivo, es. &quot;meno di 50 kg&quot;, e
-            da quando ricontattarla: tornerà tra i &quot;Da ricontattare&quot;).
+            <b>Nominativi al trasfusionale</b>: apri la lista (solo chi ha confermato), fai uno screenshot o copia il testo e mandala. Poi spunta &quot;Inviata&quot;.
           </li>
           <li>
-            <b>Avvisa i prof</b>: per ogni scuola c&apos;è il messaggio pronto con nomi e classi (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
+            <b>Nominativi ai prof</b>: per ogni scuola c&apos;è il messaggio pronto con nomi e classi (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
           </li>
           <li>
             Il giorno prima manda il <b>promemoria</b> ai ragazzi.
           </li>
         </ol>
         <p className="text-xs">
-          Il pallino <span className="text-amber-500">●</span> giallo = da confermare, <span className="text-green-600">●</span> verde = confermato. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
+          Il pallino <span className="text-amber-500">●</span> giallo = il ragazzo deve ancora confermare, <span className="text-green-600">●</span> verde = ha confermato. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
           Le spunte &quot;Inviata&quot; e &quot;Prof avvisati&quot; restano salvate su questo dispositivo.
         </p>
       </Istruzioni>

@@ -337,7 +337,7 @@ export default function SchedaPersona({
             <SceltaData c={c} tutti={tutti} valore={dataTurno} onChange={setDataTurno} />
             <label className="flex items-center gap-2 text-xs text-slate-600">
               <input type="checkbox" checked={subitoConfermato} onChange={(e) => setSubitoConfermato(e.target.checked)} className="w-4 h-4 accent-red-600" />
-              Il trasfusionale ha già confermato questa data (segna subito come confermato)
+              Ha già confermato che ci sarà (segna subito come confermato)
             </label>
             <Bottone tipo="primario" grande onClick={mettiInTurno} disabled={!dataTurno || inCorso}>
               📅 Metti nel turno {dataTurno ? `di ${fmtData(dataTurno, "giorno")}` : ""}
@@ -381,12 +381,12 @@ export default function SchedaPersona({
             <p className="text-sm text-slate-700">
               <b>{dataAttuale ? iniziale(fmtData(dataAttuale, "lunga")) : "Data non impostata"}</b>
               {" · "}
-              {fase === "confermato" ? <span className="text-green-700 font-bold">confermato dal trasfusionale</span> : <span className="text-blue-700 font-bold">in attesa di conferma dal trasfusionale</span>}
+              {fase === "confermato" ? <span className="text-green-700 font-bold">ha confermato che ci sarà</span> : <span className="text-blue-700 font-bold">deve ancora confermare (chiediglielo su WhatsApp)</span>}
             </p>
             <div className="flex flex-wrap gap-2">
               {fase === "in_turno" ? (
                 <Bottone tipo="ok" onClick={() => esegui(() => azioni.aggiorna(c.id, { shift_status: "Confermato" }, "Turno confermato"))} disabled={inCorso || !dataAttuale}>
-                  ✅ Confermato dal trasfusionale
+                  ✅ Segna confermato
                 </Bottone>
               ) : (
                 <Bottone onClick={() => esegui(() => azioni.aggiorna(c.id, { shift_status: "Contattato" }, "Tornato 'da confermare'"))} disabled={inCorso}>

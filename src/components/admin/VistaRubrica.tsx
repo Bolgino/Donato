@@ -2,7 +2,8 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Professore } from "@/types/admin";
-import { emailValida, linkGmail, linkWhatsApp, normScuola, profPerScuola } from "@/lib/donato";
+import { copiaTesto, emailValida, linkGmail, linkWhatsApp, normScuola, profPerScuola } from "@/lib/donato";
+import { msgInvitoProf, oggettoInvitoProf } from "@/lib/messaggi";
 import { SCUOLE } from "@/lib/scuole";
 import { Bottone, conferma, Istruzioni, LinkGmail, LinkWhatsApp, Vuoto } from "./ui";
 
@@ -11,12 +12,21 @@ export default function VistaRubrica({
   ricerca,
   salva,
   elimina,
+  anno,
+  invitati,
+  setInvitati,
 }: {
   profs: Professore[];
   ricerca: string;
   salva: (p: Partial<Professore>) => Promise<boolean>;
   elimina: (id: string) => Promise<boolean>;
+  /** Anno scolastico in corso, es. 2026-2027 */
+  anno: string;
+  /** Già chiesto ai prof se partecipano quest'anno? */
+  invitati: boolean;
+  setInvitati: (v: boolean) => void;
 }) {
+  const [mostraInvito, setMostraInvito] = useState(false);
   const [modifica, setModifica] = useState<Partial<Professore> | null>(null);
   const scuoleModulo = SCUOLE.filter((s) => s !== "Altro");
   const q = ricerca.toLowerCase().trim();
@@ -36,11 +46,62 @@ export default function VistaRubrica({
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <Istruzioni id="rubrica">
-        <p>I professori referenti di ogni scuola. Servono nella pagina Turni per mandare l&apos;avviso di assenza già scritto.</p>
+        <p>
+          I professori referenti di ogni scuola. Servono a <b>inizio anno</b> per chiedere se la scuola partecipa al progetto (riquadro 📣 qui sotto) e nella pagina Turni
+          per mandare i nominativi dei ragazzi già scritti.
+        </p>
         <p>
           Scrivi il nome della <b>scuola uguale a quello del modulo</b> (te lo suggerisce mentre scrivi): così il prof viene abbinato da solo ai suoi studenti.
         </p>
       </Istruzioni>
+
+      {/* Inizio anno: chiedere ai prof se la scuola partecipa */}
+      <div className={`rounded-2xl border p-4 space-y-3 ${invitati ? "bg-green-50 border-green-200" : "bg-white border-red-200 shadow-sm"}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-slate-800">📣 Inizio anno {anno}: chiedi ai prof se partecipano</h3>
+            <p className="text-xs text-slate-500">
+              {invitati ? "Fatto ✓ — i messaggi restano qui se ti servono di nuovo." : "Primo passo dell'anno: un messaggio a ogni referente per sapere se la scuola aderisce al Progetto Scuole."}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {invitati && (
+              <button onClick={() => setMostraInvito(!mostraInvito)} className="text-xs font-bold text-slate-500 underline">
+                {mostraInvito ? "Nascondi" : "Mostra messaggi"}
+              </button>
+            )}
+            <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={invitati} onChange={(e) => setInvitati(e.target.checked)} className="w-4 h-4 accent-green-600" />
+              Fatto per il {anno}
+            </label>
+          </div>
+        </div>
+        {(!invitati || mostraInvito) &&
+          (profs.length === 0 ? (
+            <p className="text-xs text-slate-500">Aggiungi prima i referenti qui sotto con &quot;+ Nuovo&quot;.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 border-t border-slate-100">
+              {profs.map((p) => {
+                const testo = msgInvitoProf(p, anno);
+                return (
+                  <li key={p.id} className="py-2 flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-700 flex-1 min-w-[160px]">
+                      {p.nome} {p.cognome} <span className="text-[11px] font-bold text-red-600 uppercase">{p.scuola}</span>
+                    </span>
+                    {p.cell && <LinkWhatsApp href={linkWhatsApp(p.cell, testo)} />}
+                    <LinkGmail href={emailValida(p.mail) ? linkGmail(p.mail, oggettoInvitoProf(anno), testo) : null} />
+                    <button
+                      onClick={async () => ((await copiaTesto(testo)) ? toast.success("Messaggio copiato") : toast.error("Non sono riuscito a copiare"))}
+                      className="text-[11px] font-bold text-slate-500 underline"
+                    >
+                      Copia testo
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ))}
+      </div>
 
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
         <div>
