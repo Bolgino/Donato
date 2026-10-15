@@ -16,14 +16,18 @@ export const CONFIG_TURNI = {
   numeroDateProposte: 6,
   /** Dove si fa la visita (compare nei messaggi e nella lista) */
   luogo: "Centro Trasfusionale dell'Ospedale di Feltre",
+  /** Orario dell'appuntamento (i ragazzi vanno da soli) */
+  orario: "8:45",
 };
 
 /** Giorni di stop dopo l'ultima donazione / visita */
 export const GIORNI_STOP_DOPO_DONAZIONE = 90;
 /** Oltre questi anni dall'ultima donazione un "già donatore" torna aspirante */
 export const ANNI_DONATORE_SCADUTO = 2;
-/** Dopo quanti mesi ricontattare chi "ci vuole pensare" */
+/** Dopo quanti mesi ricontattare (via mail) chi "ci vuole pensare" */
 export const MESI_PRIMA_DI_RISCRIVERE_A_CHI_CI_PENSA = 1;
+/** Quanti giorni dare per rispondere alla mail */
+export const GIORNI_PER_RISPONDERE = 14;
 
 // ============================================================
 // DATE (sempre in ora locale: niente sorprese con il fuso orario)
@@ -72,7 +76,7 @@ export function addAnni(iso: string, anni: number): string {
   return toISO(d);
 }
 
-type StileData = "breve" | "lunga" | "giorno" | "giornoAnno";
+type StileData = "breve" | "lunga" | "giorno" | "giornoAnno" | "giornoMese";
 
 /** breve: 21/10/2026 · lunga: martedì 21 ottobre 2026 · giorno: martedì 21 ottobre */
 export function fmtData(s: string | null | undefined, stile: StileData = "breve"): string {
@@ -82,6 +86,7 @@ export function fmtData(s: string | null | undefined, stile: StileData = "breve"
   if (stile === "breve") return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
   if (stile === "giorno") return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
   if (stile === "giornoAnno") return d.toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" });
+  if (stile === "giornoMese") return d.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
   return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -127,7 +132,7 @@ export const isNo = (t?: string | null) => t === "No" || t === "NO";
 export type Fase =
   | "da_contattare" // nuova risposta, o tornata disponibile
   | "da_ricontattare" // da risentire più avanti
-  | "in_turno" // messa in un turno, manca la conferma del trasfusionale
+  | "in_turno" // messa in un turno, il ragazzo deve ancora confermare
   | "confermato" // turno confermato
   | "ci_pensa" // ha risposto "Voglio pensarci"
   | "no" // ha detto no
@@ -151,8 +156,8 @@ export function faseDi(c: Candidato): Fase {
 export const ETICHETTA_FASE: Record<Fase, string> = {
   da_contattare: "Da contattare",
   da_ricontattare: "Da ricontattare",
-  in_turno: "In turno · da confermare",
-  confermato: "Turno confermato",
+  in_turno: "In turno · deve confermare",
+  confermato: "Ha confermato il turno",
   ci_pensa: "Ci sta pensando",
   no: "Ha detto no",
   altro: "—",
@@ -374,6 +379,11 @@ export function linkGmail(to: string, oggetto?: string, corpo?: string): string 
   if (oggetto) url += `&su=${encodeURIComponent(oggetto)}`;
   if (corpo) url += `&body=${encodeURIComponent(corpo)}`;
   return url;
+}
+
+/** Una sola mail a più persone, in copia nascosta (nessuno vede gli indirizzi degli altri) */
+export function linkGmailCcn(destinatari: string[], oggetto: string, corpo: string): string {
+  return `https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(destinatari.join(","))}&su=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(corpo)}`;
 }
 
 export async function copiaTesto(testo: string): Promise<boolean> {

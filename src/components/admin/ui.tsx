@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Candidato } from "@/types/admin";
 import { blocchiOggi, isAspirante, isGiaDonatore, isNo, isPensarci, leggiPreferenza, scriviPreferenza } from "@/lib/donato";
+import { DOCUMENTI_ULSS, urlDocumento } from "@/lib/messaggi";
 
 export function TipoBadge({ tipo }: { tipo: string }) {
   if (isGiaDonatore(tipo)) return <span className="text-[10px] uppercase font-black tracking-wide px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">🩸 Già donatore</span>;
@@ -88,10 +89,10 @@ export function LinkWhatsApp({ href, children = "WhatsApp", grande = false }: { 
   );
 }
 
-export function LinkGmail({ href, children = "Email", grande = false }: { href: string | null; children?: ReactNode; grande?: boolean }) {
+export function LinkGmail({ href, children = "Email", grande = false, onClick }: { href: string | null; children?: ReactNode; grande?: boolean; onClick?: () => void }) {
   if (!href) return null;
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={`${baseBtn} bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 ${grande ? "px-4 py-2.5 text-sm" : "px-3 py-1.5 text-xs"}`}>
+    <a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={`${baseBtn} bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 ${grande ? "px-4 py-2.5 text-sm" : "px-3 py-1.5 text-xs"}`}>
       <span aria-hidden>✉️</span> {children}
     </a>
   );
@@ -176,5 +177,52 @@ export function Modale({ onClose, children, larga = false }: { onClose: () => vo
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * I due file dell'ULSS da mandare con il primo messaggio.
+ * Sul telefono "Invia i 2 file" apre la condivisione (scegli WhatsApp e la chat del ragazzo);
+ * altrimenti mostra i due PDF da scaricare e allegare. I link sono comunque già nel messaggio.
+ */
+export function DocumentiUlss({ grande = false }: { grande?: boolean }) {
+  const [aperto, setAperto] = useState(false);
+  const condividi = async () => {
+    // Computer (o browser senza condivisione di file): mostra subito i due PDF da scaricare
+    if (typeof navigator.canShare !== "function") {
+      setAperto(!aperto);
+      return;
+    }
+    try {
+      const files = await Promise.all(
+        DOCUMENTI_ULSS.map(async (d) => {
+          const r = await fetch(urlDocumento(d.file));
+          return new File([await r.blob()], d.file, { type: "application/pdf" });
+        }),
+      );
+      if (typeof navigator.canShare === "function" && navigator.canShare({ files })) {
+        await navigator.share({ files, title: "Documenti ULSS per la donazione" });
+        return;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+    }
+    setAperto(!aperto);
+  };
+  return (
+    <span className="inline-flex flex-col gap-1">
+      <Bottone onClick={condividi} grande={grande} title="Modulo pre-donazione e modulo sospensione">
+        📎 Invia i 2 file ULSS
+      </Bottone>
+      {aperto && (
+        <span className="flex flex-col gap-0.5 text-[11px]">
+          {DOCUMENTI_ULSS.map((d) => (
+            <a key={d.file} href={urlDocumento(d.file)} download target="_blank" rel="noopener noreferrer" className="font-bold text-blue-700 underline">
+              ⬇ {d.titolo}
+            </a>
+          ))}
+        </span>
+      )}
+    </span>
   );
 }

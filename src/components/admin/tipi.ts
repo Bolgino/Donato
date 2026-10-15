@@ -1,6 +1,6 @@
 import { Candidato } from "@/types/admin";
 
-export type Vista = "oggi" | "contattare" | "turni" | "pensano" | "rubrica" | "archivio" | "statistiche" | "guida";
+export type Vista = "oggi" | "contattare" | "turni" | "pensano" | "rubrica" | "archivio" | "statistiche" | "guida" | "domande";
 
 /** Operazioni sul database messe a disposizione delle pagine */
 export interface Azioni {

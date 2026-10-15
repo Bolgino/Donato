@@ -3,8 +3,8 @@
 //  - "Da Valutare"     → risposta nuova, ancora da contattare
 //  - "In Attesa"       → da contattare (arriva da "Ci voglio pensare" o da "Già donatore")
 //  - "Da Ricontattare" → da risentire più avanti (eventualmente da una certa data)
-//  - "Contattato"      → inserito in un turno, in attesa di conferma dal trasfusionale
-//  - "Confermato"      → turno confermato dal trasfusionale
+//  - "Contattato"      → inserito in un turno, il ragazzo deve ancora confermare
+//  - "Confermato"      → il ragazzo ha confermato che ci sarà
 export type ShiftStatus = 'Da Valutare' | 'Contattato' | 'Confermato' | 'Da Ricontattare' | 'In Attesa';
 
 export interface Candidato {

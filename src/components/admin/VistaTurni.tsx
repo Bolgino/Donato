@@ -5,7 +5,6 @@ import { Candidato, Professore } from "@/types/admin";
 import {
   CONFIG_TURNI,
   contiene,
-  copiaTesto,
   emailValida,
   fmtData,
   giorniDaOggi,
@@ -13,7 +12,6 @@ import {
   isGiaDonatore,
   linkGmail,
   linkWhatsApp,
-  linkWhatsAppLibero,
   maiuscolaIniziale,
   nato,
   nomeCompleto,
@@ -24,54 +22,46 @@ import {
   SpuntaTurno,
   Turno,
 } from "@/lib/donato";
-import { msgConfermato, msgInserito, msgListaTrasfusionale, msgPromemoria, msgProf, NOME_PROGETTO, oggettoProf } from "@/lib/messaggi";
+import { msgPromemoria, msgTurno, NOME_PROGETTO, oggettoProf } from "@/lib/messaggi";
 import { Azioni } from "./tipi";
 import { FormTogli } from "./SchedaPersona";
-import { Bottone, EcgBadge, Istruzioni, LinkGmail, LinkWhatsApp, Modale, TipoBadge, Vuoto } from "./ui";
-
-async function copia(testo: string, cosa = "Testo") {
-  if (await copiaTesto(testo)) toast.success(`${cosa} copiato: incollalo dove ti serve`);
-  else toast.error("Non sono riuscito a copiare. Seleziona il testo a mano.");
-}
+import { Bottone, DocumentiUlss, EcgBadge, Istruzioni, LinkGmail, LinkWhatsApp, Modale, TipoBadge, Vuoto } from "./ui";
 
 // ---------------------------------------------------------------
-// Foglio pulito da fotografare / mandare al trasfusionale
+// Foglio pulito da fotografare: la foto va al trasfusionale e ai prof
 // ---------------------------------------------------------------
 function FoglioTrasfusionale({ t, onClose, onInviata }: { t: Turno; onClose: () => void; onInviata: () => void }) {
   const [conTelefono, setConTelefono] = useState(false);
-  const testo = msgListaTrasfusionale(t, conTelefono);
-  const puoCondividere = typeof navigator !== "undefined" && typeof navigator.share === "function";
-
-  const condividi = async () => {
-    try {
-      await navigator.share({ title: `Turno ${fmtData(t.data)}`, text: testo });
-    } catch {
-      /* annullato */
-    }
-  };
 
   return (
     <Modale onClose={onClose} larga>
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs text-slate-500">
-            📸 Fai uno <b>screenshot</b> di questa schermata e mandalo al trasfusionale, oppure usa <b>Copia testo</b> / <b>Invia</b>.
+            📸 Fai uno <b>screenshot</b> di questa schermata e manda la foto al trasfusionale e ai prof delle scuole coinvolte.
           </p>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-800 text-2xl leading-none px-1" aria-label="Chiudi">
             ✕
           </button>
         </div>
 
+        {t.daConfermare.length > 0 && (
+          <p className="text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-2">
+            ⚠️ {t.daConfermare.length} {t.daConfermare.length === 1 ? "ragazzo non ha" : "ragazzi non hanno"} ancora confermato e non{" "}
+            {t.daConfermare.length === 1 ? "è" : "sono"} in questa lista: {t.daConfermare.map((c) => nomeCompleto(c)).join(", ")}.
+          </p>
+        )}
+
         {/* Il foglio */}
         <div className="border-2 border-slate-800 rounded-xl p-4 md:p-6 bg-white">
           <p className="text-[11px] font-black uppercase tracking-widest text-red-600">{NOME_PROGETTO}</p>
           <h3 className="text-xl md:text-2xl font-black text-slate-900 mt-1">Turno di {fmtData(t.data, "lunga")}</h3>
           <p className="text-xs text-slate-500 mb-4">
-            {CONFIG_TURNI.luogo} · {t.persone.length} {t.persone.length === 1 ? "persona" : "persone"}
+            {CONFIG_TURNI.luogo} · {t.confermati.length} {t.confermati.length === 1 ? "persona" : "persone"}
           </p>
           {/* Telefono: elenco a righe, così entra tutto nello screenshot */}
           <ol className="sm:hidden divide-y divide-slate-200 border-t-2 border-slate-800">
-            {t.persone.map((c, i) => (
+            {t.confermati.map((c, i) => (
               <li key={c.id} className="py-2.5">
                 <p className="font-black text-slate-900 text-base">
                   <span className="text-slate-400 font-bold mr-1.5">{i + 1}.</span>
@@ -105,7 +95,7 @@ function FoglioTrasfusionale({ t, onClose, onInviata }: { t: Turno; onClose: () 
                 </tr>
               </thead>
               <tbody>
-                {t.persone.map((c, i) => (
+                {t.confermati.map((c, i) => (
                   <tr key={c.id} className="border-b border-slate-200">
                     <td className="py-2.5 pr-2 font-bold text-slate-400">{i + 1}</td>
                     <td className="py-2.5 pr-2 font-black text-slate-900 text-base">
@@ -129,18 +119,6 @@ function FoglioTrasfusionale({ t, onClose, onInviata }: { t: Turno; onClose: () 
         </label>
 
         <div className="flex flex-wrap gap-2">
-          <Bottone grande onClick={() => copia(testo, "Elenco")}>
-            📋 Copia testo
-          </Bottone>
-          {puoCondividere ? (
-            <Bottone grande onClick={condividi}>
-              📤 Condividi…
-            </Bottone>
-          ) : (
-            <LinkWhatsApp href={linkWhatsAppLibero(testo)} grande>
-              Invia su WhatsApp
-            </LinkWhatsApp>
-          )}
           <Bottone
             grande
             tipo="ok"
@@ -149,7 +127,7 @@ function FoglioTrasfusionale({ t, onClose, onInviata }: { t: Turno; onClose: () 
               onClose();
             }}
           >
-            ✓ Fatto, l&apos;ho mandata
+            ✓ Fatto, ho mandato la foto al trasfusionale
           </Bottone>
         </div>
       </div>
@@ -214,12 +192,7 @@ function AvvisoProf({ t, profs, azioni }: { t: Turno; profs: Professore[]; azion
         const profScuola = profPerScuola(profs, scuola);
         return (
           <div key={scuola} className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-bold text-sm text-slate-800">🏫 {scuola}</p>
-              <button onClick={() => copia(msgProf(profScuola[0] || null, scuola, t.data, studenti), "Messaggio")} className="text-[11px] font-bold text-slate-500 underline">
-                Copia testo
-              </button>
-            </div>
+            <p className="font-bold text-sm text-slate-800">🏫 {scuola}</p>
             <p className="text-xs text-slate-600">{studenti.map((s) => `${nomeCompleto(s)}${s.classe ? ` (${s.classe})` : ""}`).join(", ")}</p>
             {profScuola.length === 0 ? (
               <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2">
@@ -227,21 +200,18 @@ function AvvisoProf({ t, profs, azioni }: { t: Turno; profs: Professore[]; azion
                 <button onClick={() => azioni.vaiA("rubrica")} className="font-bold underline">
                   Aggiungilo nella Rubrica
                 </button>{" "}
-                (scrivi il nome della scuola uguale a quello del modulo) oppure usa &quot;Copia testo&quot;.
+                (scrivi il nome della scuola uguale a quello del modulo).
               </p>
             ) : (
-              profScuola.map((p) => {
-                const testo = msgProf(p, scuola, t.data, studenti);
-                return (
-                  <div key={p.id} className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-700 mr-1">
-                      prof. {p.nome} {p.cognome}
-                    </span>
-                    {p.cell && <LinkWhatsApp href={linkWhatsApp(p.cell, testo)} />}
-                    <LinkGmail href={emailValida(p.mail) ? linkGmail(p.mail, oggettoProf(t.data), testo) : null} />
-                  </div>
-                );
-              })
+              profScuola.map((p) => (
+                <div key={p.id} className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-700 mr-1">
+                    prof. {p.nome} {p.cognome}
+                  </span>
+                  {p.cell && <LinkWhatsApp href={linkWhatsApp(p.cell)} />}
+                  <LinkGmail href={emailValida(p.mail) ? linkGmail(p.mail, oggettoProf(t.data)) : null} />
+                </div>
+              ))
             )}
           </div>
         );
@@ -257,7 +227,8 @@ function RigaTurno({ c, azioni }: { c: Candidato; azioni: Azioni }) {
   const [togli, setTogli] = useState(false);
   const [inCorso, setInCorso] = useState(false);
   const confermato = c.shift_status === "Confermato";
-  const testo = confermato ? msgConfermato(c, c.data_disponibilita) : msgInserito(c, c.data_disponibilita);
+  // Da confermare: il messaggio con la data e i 2 file ULSS. Confermato: chat vuota.
+  const wa = confermato ? linkWhatsApp(c.cellulare) : linkWhatsApp(c.cellulare, msgTurno(c, c.data_disponibilita));
 
   const cambiaStato = async (stato: "Confermato" | "Contattato") => {
     setInCorso(true);
@@ -291,14 +262,15 @@ function RigaTurno({ c, azioni }: { c: Candidato; azioni: Azioni }) {
               </Bottone>
             </>
           ) : (
-            <Bottone tipo="ok" onClick={() => cambiaStato("Confermato")} disabled={inCorso}>
-              ✅ Conferma
+            <Bottone tipo="blu" onClick={() => cambiaStato("Confermato")} disabled={inCorso} title="Il ragazzo ha confermato che ci sarà">
+              ✅ Segna confermato
             </Bottone>
           )}
           <Bottone tipo="pericolo" onClick={() => setTogli(!togli)} disabled={inCorso}>
             ✕ Togli
           </Bottone>
-          <LinkWhatsApp href={linkWhatsApp(c.cellulare, testo)} />
+          <LinkWhatsApp href={wa}>{confermato ? "WhatsApp" : "Messaggio"}</LinkWhatsApp>
+          {!confermato && <DocumentiUlss />}
         </div>
       </div>
       {togli && (
@@ -361,30 +333,37 @@ function CardTurno({
       </ul>
 
       <div className="p-4 space-y-4 border-t border-slate-200 bg-slate-50/60">
-        <Passo n={1} titolo="Manda la lista al trasfusionale" fatto={!!spunta.lista}>
-          <div className="flex flex-wrap items-center gap-2">
-            <Bottone onClick={() => setFoglio(true)}>📋 Lista da fotografare</Bottone>
-            <Bottone onClick={() => copia(msgListaTrasfusionale(t, false), "Elenco")}>Copia testo</Bottone>
-            <CasellaFatto checked={!!spunta.lista} onChange={(v) => setSpunta({ ...spunta, lista: v })} testo="Inviata" />
-          </div>
-        </Passo>
-
-        <Passo n={2} titolo="Segna chi ha confermato il trasfusionale" fatto={tuttoConfermato}>
+        <Passo n={1} titolo="Scrivi ai ragazzi e conferma tu chi c'è" fatto={tuttoConfermato}>
           {tuttoConfermato ? (
             <p className="text-xs text-slate-500">Tutti confermati ✓</p>
           ) : (
             <p className="text-xs text-slate-600">
-              Persona per persona, qui sopra: <b>✅ Conferma</b> se il trasfusionale l&apos;ha accettata, <b>✕ Togli</b> se non può (scrivi il motivo e da quando
-              ricontattarla). Mancano <b>{t.daConfermare.length}</b>.
+              Qui sopra, per ognuno: <b>💬 Messaggio</b> (già scritto con la data) e <b>📎 Invia i 2 file ULSS</b>. Quando ti risponde che c&apos;è, tocca{" "}
+              <b>✅ Segna confermato</b>; se non può, <b>✕ Togli</b> (motivo e da quando ricontattarlo). Mancano <b>{t.daConfermare.length}</b>.
             </p>
           )}
         </Passo>
 
-        <Passo n={3} titolo="Avvisa i professori che i ragazzi saranno assenti" fatto={!!spunta.prof} spento={t.confermati.length === 0}>
+        <Passo n={2} titolo="Manda la foto al trasfusionale" fatto={!!spunta.lista} spento={t.confermati.length === 0}>
           {t.confermati.length === 0 ? (
-            <p className="text-xs text-slate-500">Compare quando almeno una persona è confermata.</p>
+            <p className="text-xs text-slate-500">Si attiva quando almeno un ragazzo ha confermato.</p>
           ) : (
             <>
+              <div className="flex flex-wrap items-center gap-2">
+                <Bottone onClick={() => setFoglio(true)}>📋 Lista da fotografare ({t.confermati.length})</Bottone>
+                <CasellaFatto checked={!!spunta.lista} onChange={(v) => setSpunta({ ...spunta, lista: v })} testo="Inviata" />
+              </div>
+              <p className="text-[11px] text-slate-500">Nella lista ci sono solo i ragazzi che hai confermato. Se ne confermi un altro dopo, rimanda la foto aggiornata.</p>
+            </>
+          )}
+        </Passo>
+
+        <Passo n={3} titolo="Manda la stessa foto ai professori" fatto={!!spunta.prof} spento={t.confermati.length === 0}>
+          {t.confermati.length === 0 ? (
+            <p className="text-xs text-slate-500">Si attiva quando almeno un ragazzo ha confermato.</p>
+          ) : (
+            <>
+              <p className="text-[11px] text-slate-500">Ai prof arriva solo la foto della lista: tocca WhatsApp o Email del prof e allegala.</p>
               <AvvisoProf t={t} profs={profs} azioni={azioni} />
               <CasellaFatto checked={!!spunta.prof} onChange={(v) => setSpunta({ ...spunta, prof: v })} testo="Prof avvisati" />
             </>
@@ -394,11 +373,11 @@ function CardTurno({
         <Passo n={4} titolo="Promemoria ai ragazzi (il giorno prima)" fatto={false} spento={t.confermati.length === 0 || giorni > 3}>
           <div className="flex flex-wrap gap-2">
             {t.confermati.map((c) => (
-              <LinkWhatsApp key={c.id} href={linkWhatsApp(c.cellulare, msgPromemoria(c, c.data_disponibilita))}>
+              <LinkWhatsApp key={c.id} href={linkWhatsApp(c.cellulare, msgPromemoria())}>
                 {maiuscolaIniziale(c.nome) || "Promemoria"}
               </LinkWhatsApp>
             ))}
-            {t.confermati.length === 0 && <p className="text-xs text-slate-500">Dopo la conferma qui trovi i messaggi di promemoria già pronti.</p>}
+            {t.confermati.length === 0 && <p className="text-xs text-slate-500">Quando i ragazzi confermano, qui trovi i messaggi di promemoria già pronti.</p>}
           </div>
         </Passo>
       </div>
@@ -431,24 +410,25 @@ export default function VistaTurni({
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <Istruzioni id="turni">
-        <p>Ogni turno ha 4 passi, da fare in ordine:</p>
+        <p>I turni sono le date già concordate con il trasfusionale. Ogni turno ha 4 passi, da fare in ordine:</p>
         <ol className="list-decimal ml-5 space-y-1">
           <li>
-            <b>Lista al trasfusionale</b>: apri la lista, fai uno screenshot (o copia il testo) e mandala. Poi spunta &quot;Inviata&quot;.
+            <b>Scrivi ai ragazzi e conferma tu chi c&apos;è</b>: accanto al nome tocca <b>💬 Messaggio</b> (il messaggio con la data, già scritto) e <b>📎 Invia i 2 file
+            ULSS</b> (modulo pre-donazione e modulo sospensione). Quando ti risponde che c&apos;è tocca <b>✅ Segna confermato</b>, se non può <b>✕ Togli</b> (con il motivo,
+            es. &quot;meno di 50 kg&quot;, e da quando ricontattarlo). La conferma la dai tu, non il trasfusionale.
           </li>
           <li>
-            Quando il trasfusionale risponde, per <b>ogni persona</b> tocca <b>✅ Conferma</b> oppure <b>✕ Togli</b> (con il motivo, es. &quot;meno di 50 kg&quot;, e
-            da quando ricontattarla: tornerà tra i &quot;Da ricontattare&quot;).
+            <b>Foto al trasfusionale</b>: apri la lista (solo chi hai confermato), fai lo screenshot e mandalo. Poi spunta &quot;Inviata&quot;.
           </li>
           <li>
-            <b>Avvisa i prof</b>: per ogni scuola c&apos;è il messaggio pronto con nomi e classi (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
+            <b>Stessa foto ai prof</b> delle scuole coinvolte: al passo 3 trovi i loro contatti (WhatsApp o email). Poi spunta &quot;Prof avvisati&quot;.
           </li>
           <li>
-            Il giorno prima manda il <b>promemoria</b> ai ragazzi.
+            Il giorno prima manda il <b>promemoria</b> ai ragazzi che il giorno dopo fanno la donazione.
           </li>
         </ol>
         <p className="text-xs">
-          Il pallino <span className="text-amber-500">●</span> giallo = da confermare, <span className="text-green-600">●</span> verde = confermato. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
+          Il pallino <span className="text-amber-500">●</span> giallo = non ancora confermato, <span className="text-green-600">●</span> verde = confermato da te. Tocca un nome per aprire la scheda (lì puoi anche spostarlo in un&apos;altra data).
           Le spunte &quot;Inviata&quot; e &quot;Prof avvisati&quot; restano salvate su questo dispositivo.
         </p>
       </Istruzioni>

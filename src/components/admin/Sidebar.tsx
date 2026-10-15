@@ -15,11 +15,12 @@ interface SidebarProps {
 export const VOCI_MENU: { id: Vista; nome: string; icona: string; descrizione: string; gruppo: "lavoro" | "strumenti" }[] = [
   { id: "oggi", nome: "Oggi", icona: "🏠", descrizione: "Cosa c'è da fare adesso", gruppo: "lavoro" },
   { id: "contattare", nome: "Da contattare", icona: "💬", descrizione: "Hanno detto sì: scrivigli e mettili in un turno", gruppo: "lavoro" },
-  { id: "turni", nome: "Turni", icona: "📅", descrizione: "Lista al trasfusionale, conferma e avviso ai prof", gruppo: "lavoro" },
+  { id: "turni", nome: "Turni", icona: "📅", descrizione: "Messaggi ai ragazzi, conferme, foto a trasfusionale e prof", gruppo: "lavoro" },
   { id: "pensano", nome: "Ci pensano", icona: "🤔", descrizione: "Hanno risposto \"Voglio pensarci\"", gruppo: "lavoro" },
   { id: "rubrica", nome: "Rubrica prof", icona: "👩‍🏫", descrizione: "Referenti delle scuole", gruppo: "strumenti" },
   { id: "archivio", nome: "Archivio", icona: "🗂", descrizione: "Tutte le risposte ed export Excel", gruppo: "strumenti" },
   { id: "statistiche", nome: "Statistiche", icona: "📊", descrizione: "Accompagnati per anno e per scuola, risposte", gruppo: "strumenti" },
+  { id: "domande", nome: "Domande dei ragazzi", icona: "🙋", descrizione: "Risposte pronte alle domande più frequenti", gruppo: "strumenti" },
   { id: "guida", nome: "Guida", icona: "❓", descrizione: "Come funziona, passo per passo", gruppo: "strumenti" },
 ];
 

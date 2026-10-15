@@ -1,6 +1,6 @@
 "use client";
 import { Candidato } from "@/types/admin";
-import { CONFIG_TURNI, faseDi, fmtData, giorniDaOggi, iniziale, quando, SpuntaTurno, Turno } from "@/lib/donato";
+import { annoScolasticoDi, CONFIG_TURNI, faseDi, fmtData, giorniDaOggi, iniziale, oggiISO, parseData, quando, SpuntaTurno, Turno } from "@/lib/donato";
 import { Azioni, Vista } from "./tipi";
 import { inPausa } from "./VistaDaContattare";
 import { daRiscrivere, scadenzaPassata } from "./VistaCiPensano";
@@ -15,8 +15,28 @@ interface Compito {
   urgente?: boolean;
 }
 
-export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensano: Candidato[], spunte: Record<string, SpuntaTurno>): Compito[] {
+/** Mesi in cui ricordare di chiedere ai prof se partecipano (8 = settembre, 9 = ottobre, 10 = novembre) */
+const MESI_INVITO_PROF = [8, 9, 10];
+
+export function calcolaCompiti(
+  daContattare: Candidato[],
+  turni: Turno[],
+  pensano: Candidato[],
+  spunte: Record<string, SpuntaTurno>,
+  profInvitati: boolean,
+): Compito[] {
   const out: Compito[] = [];
+  if (!profInvitati && MESI_INVITO_PROF.includes(parseData(oggiISO()).getMonth())) {
+    out.push({
+      chiave: "invito-prof",
+      icona: "📣",
+      titolo: `Inizio anno ${annoScolasticoDi(oggiISO())}: chiedi ai prof se partecipano`,
+      testo: "In Rubrica prof c'è il messaggio già pronto per ogni referente. Quando hai finito spunta \"Fatto\".",
+      bottone: "Vai alla Rubrica",
+      vista: "rubrica",
+      urgente: true,
+    });
+  }
   const nuovi = daContattare.filter((c) => faseDi(c) === "da_contattare");
   const ricontattabili = daContattare.filter((c) => faseDi(c) === "da_ricontattare" && !inPausa(c));
 
@@ -25,8 +45,8 @@ export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensan
     out.push({
       chiave: "nuovi",
       icona: "💬",
-      titolo: `Scrivi a ${nuovi.length} ${nuovi.length === 1 ? "nuova risposta" : "nuove risposte"}`,
-      testo: `Manda il WhatsApp (è già scritto con le date libere) e quando rispondono mettili in un turno.${nonSalvati ? ` ${nonSalvati} non sono ancora in Google Contatti.` : ""}`,
+      titolo: `Metti in turno ${nuovi.length} ${nuovi.length === 1 ? "nuova risposta" : "nuove risposte"}`,
+      testo: `Scegli la data e poi manda il messaggio WhatsApp (già scritto) con i 2 file ULSS.${nonSalvati ? ` ${nonSalvati} non sono ancora in Google Contatti.` : ""}`,
       bottone: "Vai a Da contattare",
       vista: "contattare",
       urgente: true,
@@ -52,33 +72,35 @@ export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensan
     const s = spunte[t.data] || {};
     const giorno = fmtData(t.data, "giorno");
     const g = giorniDaOggi(t.data);
-    if (t.daConfermare.length && !s.lista) {
+    if (t.daConfermare.length) {
+      const n = t.daConfermare.length;
       out.push({
-        chiave: `lista-${t.data}`,
-        icona: "📋",
-        titolo: `Manda la lista di ${giorno} al trasfusionale`,
-        testo: `${t.persone.length} ${t.persone.length === 1 ? "persona" : "persone"} (${quando(t.data)}). Apri la lista, fai uno screenshot e mandala.`,
+        chiave: `conferma-${t.data}`,
+        icona: "✅",
+        titolo: `${n} ${n === 1 ? "ragazzo da confermare" : "ragazzi da confermare"} per ${giorno}`,
+        testo: `Mandagli il messaggio con i 2 file ULSS; quando ti dice che c'è, segnalo tu confermato (o toglilo dal turno). ${iniziale(quando(t.data))}.`,
         bottone: "Apri il turno",
         vista: "turni",
         urgente: g <= 7,
       });
-    } else if (t.daConfermare.length) {
+    }
+    if (t.confermati.length && !s.lista) {
       out.push({
-        chiave: `conferma-${t.data}`,
-        icona: "⏳",
-        titolo: `Aspetti la conferma per ${giorno}`,
-        testo: `Mancano ${t.daConfermare.length} da confermare: quando il trasfusionale risponde, conferma o togli ogni persona.`,
+        chiave: `lista-${t.data}`,
+        icona: "📋",
+        titolo: `Manda la foto di ${giorno} al trasfusionale`,
+        testo: `${t.confermati.length} ${t.confermati.length === 1 ? "ragazzo confermato" : "ragazzi confermati"}. Apri la lista, fai lo screenshot e manda la foto.`,
         bottone: "Apri il turno",
         vista: "turni",
-        urgente: g <= 3,
+        urgente: g <= 7,
       });
     }
     if (t.confermati.length && !s.prof) {
       out.push({
         chiave: `prof-${t.data}`,
         icona: "🏫",
-        titolo: `Avvisa i prof per ${giorno}`,
-        testo: "Il messaggio con nomi e classi è già pronto per ogni scuola.",
+        titolo: `Manda la stessa foto di ${giorno} ai prof`,
+        testo: "Ai prof delle scuole coinvolte arriva solo la foto della lista: i loro contatti sono al passo 3 del turno.",
         bottone: "Apri il turno",
         vista: "turni",
         urgente: g <= 3,
@@ -89,7 +111,7 @@ export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensan
         chiave: `promemoria-${t.data}`,
         icona: "🔔",
         titolo: `${g === 0 ? "Oggi" : "Domani"} c'è il turno: manda il promemoria`,
-        testo: "Nel turno, al passo 4, trovi un pulsante WhatsApp per ogni ragazzo.",
+        testo: "Nel turno, al passo 4, c'è il messaggio già pronto per ogni ragazzo (vanno da soli: spiega come arrivare).",
         bottone: "Apri il turno",
         vista: "turni",
         urgente: true,
@@ -102,8 +124,8 @@ export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensan
     out.push({
       chiave: "pensano",
       icona: "🤔",
-      titolo: `${daSentire.length} ${daSentire.length === 1 ? "persona ci pensa" : "persone ci pensano"} da un po'`,
-      testo: "Scrivigli per sapere se partecipano e imposta una scadenza per la risposta.",
+      titolo: `Manda la mail a ${daSentire.length} ${daSentire.length === 1 ? "persona che ci pensa" : "persone che ci pensano"}`,
+      testo: "È passato circa un mese (o la scadenza): la lettera è già scritta, si manda solo via mail.",
       bottone: "Vai a Ci pensano",
       vista: "pensano",
     });
@@ -112,12 +134,12 @@ export function calcolaCompiti(daContattare: Candidato[], turni: Turno[], pensan
 }
 
 const PERCORSO: { icona: string; testo: string; vista: Vista }[] = [
+  { icona: "📣", testo: "Inizio anno: chiedi ai prof", vista: "rubrica" },
   { icona: "📝", testo: "Arrivano le risposte", vista: "contattare" },
-  { icona: "💬", testo: "Scrivi su WhatsApp", vista: "contattare" },
-  { icona: "📅", testo: "Metti nel turno", vista: "contattare" },
-  { icona: "📋", testo: "Lista al trasfusionale", vista: "turni" },
-  { icona: "✅", testo: "Conferma le persone", vista: "turni" },
-  { icona: "🏫", testo: "Avvisa i prof", vista: "turni" },
+  { icona: "📅", testo: "Mettili nei turni + messaggio e 2 file ULSS", vista: "contattare" },
+  { icona: "✅", testo: "Confermi tu i ragazzi", vista: "turni" },
+  { icona: "📸", testo: "Foto a trasfusionale e prof", vista: "turni" },
+  { icona: "🔔", testo: "Promemoria il giorno prima", vista: "turni" },
 ];
 
 export default function VistaOggi({
@@ -125,15 +147,17 @@ export default function VistaOggi({
   turni,
   pensano,
   spunte,
+  profInvitati,
   azioni,
 }: {
   daContattare: Candidato[];
   turni: Turno[];
   pensano: Candidato[];
   spunte: Record<string, SpuntaTurno>;
+  profInvitati: boolean;
   azioni: Azioni;
 }) {
-  const compiti = calcolaCompiti(daContattare, turni, pensano, spunte);
+  const compiti = calcolaCompiti(daContattare, turni, pensano, spunte, profInvitati);
   const prossimi = turni.filter((t) => !t.passato && t.data !== "senza-data").slice(0, 4);
 
   return (
