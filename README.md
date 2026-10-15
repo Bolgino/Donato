@@ -21,7 +21,7 @@ Web app per raccogliere le adesioni degli studenti alla donazione di sangue e or
 | 3 | Inserisci i ragazzi nei turni (date già concordate prima con il trasfusionale) e gli scrivi | Da contattare | **📅 Metti in turno** → scegli la data → **💬 WhatsApp** (messaggio già scritto con data e orario) + **📎 i 2 file ULSS** (modulo pre-donazione e modulo sospensione) |
 | 4 | **Confermi tu (admin) i ragazzi** in base alla loro disponibilità. Non è il trasfusionale a confermare | 📅 **Turni** | per ogni ragazzo: **✅ Segna confermato** quando ti dice che c'è, oppure **✕ Togli** (motivo + da quando ricontattarlo → torna in "Da ricontattare") |
 | 5 | Mandi **solo la foto** delle persone coinvolte al trasfusionale e ai prof | Turni | **📋 Lista da fotografare** (solo i confermati) → screenshot → la stessa foto al trasfusionale e ai prof delle scuole coinvolte (contatti al passo 3) → spunta *Inviata* e *Prof avvisati* |
-| 6 | Il giorno prima mandi il promemoria ai ragazzi che fanno la donazione | Turni | scegli *con* o *senza accompagnatore* → un pulsante WhatsApp per ogni ragazzo confermato |
+| 6 | Il giorno prima mandi il promemoria ai ragazzi che fanno la donazione | Turni | un pulsante WhatsApp per ogni ragazzo confermato (vanno sempre da soli: il messaggio spiega come arrivare) |
 
 Chi risponde **"Voglio pensarci"** si ricontatta **circa un mese dopo, solo via mail** (pagina 🤔 Ci pensano → **✉️ Manda la mail**, oppure una mail a tutti in Ccn): la lettera è già scritta e la data entro cui rispondere viene salvata.
 
@@ -29,10 +29,10 @@ Chi risponde **"Voglio pensarci"** si ricontatta **circa un mese dopo, solo via 
 
 Sono i testi dei documenti del gruppo, con la data già inserita:
 - **Messaggio del turno** (WhatsApp) – "Messaggio interessati al progetto", con in fondo i link ai 2 PDF dell'ULSS (in `public/documenti/`). Con **📎 Invia i 2 file ULSS** si mandano anche come file.
-- **Promemoria del giorno prima** (WhatsApp) – "Messaggio reminder", con o senza accompagnatore.
+- **Promemoria del giorno prima** (WhatsApp) – "Messaggio reminder", nella versione per chi va da solo (i ragazzi vanno sempre senza accompagnatore).
 - **Lettera per chi ci pensa** (solo mail) – "Lettera indecisi", versione nuova.
 
-Nome e cellulare dell'**accompagnatore** e l'orario si impostano nell'app (Turni → riquadro *Accompagnatore*) e restano sul dispositivo: non sono nel codice perché il repository è pubblico. I testi si cambiano in `src/lib/messaggi.ts`.
+I messaggi **non contengono nomi né numeri di telefono**: se serve, li aggiunge l'admin in WhatsApp prima di inviare. L'orario dell'appuntamento è in `CONFIG_TURNI.orario` (`src/lib/donato.ts`), i testi si cambiano in `src/lib/messaggi.ts`.
 
 ### Le pagine
 
@@ -89,9 +89,8 @@ npm run dev     # http://localhost:3000 (modulo) e http://localhost:3000/admin
 | `src/app/page.tsx` | modulo pubblico |
 | `src/app/admin/page.tsx` | area admin: login, caricamento dati, scelta della pagina |
 | `src/lib/donato.ts` | **tutta la logica**: fasi, regole dei turni, idoneità, link WhatsApp/Gmail, export CSV. In cima c'è `CONFIG_TURNI` (giorni, posti, preavviso, luogo) |
-| `src/lib/messaggi.ts` | **testi dei messaggi** (invito ai prof a inizio anno, messaggio del turno, promemoria con/senza accompagnatore, lettera indecisi, lista per la foto) |
+| `src/lib/messaggi.ts` | **testi dei messaggi** (invito ai prof a inizio anno, messaggio del turno, promemoria del giorno prima, lettera indecisi, lista per la foto) |
 | `src/lib/domande.ts` | **domande frequenti dei ragazzi** con le risposte |
-| `src/lib/impostazioni.ts` | accompagnatore e orario (salvati sul dispositivo) |
 | `public/documenti/` | i 2 PDF dell'ULSS da mandare con il messaggio del turno |
 | `src/lib/scuole.ts` | elenco scuole del modulo (usato anche dalla rubrica) |
 | `src/components/admin/Vista*.tsx` | una pagina dell'area admin per file |

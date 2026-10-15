@@ -28,14 +28,13 @@ import {
   statoDonatore,
 } from "@/lib/donato";
 import { ETICHETTA_MESSAGGIO, NOME_PROGETTO, OGGETTO_INDECISI, SOLO_EMAIL, testoMessaggio, TipoMessaggio } from "@/lib/messaggi";
-import { useImpostazioni } from "@/lib/impostazioni";
 import { Azioni } from "./tipi";
 import { BlocchiBadge, Bottone, conferma, DocumentiUlss, EcgBadge, LinkGmail, LinkWhatsApp, Modale, TipoBadge } from "./ui";
 
 function messaggioPredefinito(fase: Fase, c: Candidato): TipoMessaggio {
   // Da contattare: prima si sceglie il turno, poi parte il messaggio con la data
   if (fase === "in_turno") return "turno";
-  if (fase === "confermato") return c.data_disponibilita && giorniDaOggi(c.data_disponibilita) <= 2 ? "promemoria_con" : "vuoto";
+  if (fase === "confermato") return c.data_disponibilita && giorniDaOggi(c.data_disponibilita) <= 2 ? "promemoria" : "vuoto";
   if (fase === "ci_pensa") return "indecisi";
   return "vuoto";
 }
@@ -184,10 +183,9 @@ export default function SchedaPersona({
   const [scelta, setScelta] = useState<{ fase: Fase; tipo: TipoMessaggio } | null>(null);
   const tipoMsg = scelta && scelta.fase === fase ? scelta.tipo : messaggioPredefinito(fase, c);
   const occ = occupazioneTurni(tutti);
-  const imp = useImpostazioni();
   // Per la mail a chi ci pensa: se la scadenza non è ancora salvata, usa quella proposta (e la salva all'invio)
   const [scadenza, setScadenza] = useState(c.scadenza_risposta ? soloData(c.scadenza_risposta) : addGiorni(oggiISO(), 14));
-  const testo = testoMessaggio(tipoMsg, tipoMsg === "indecisi" && !c.scadenza_risposta ? { ...c, scadenza_risposta: scadenza } : c, imp);
+  const testo = testoMessaggio(tipoMsg, tipoMsg === "indecisi" && !c.scadenza_risposta ? { ...c, scadenza_risposta: scadenza } : c);
   const soloEmail = SOLO_EMAIL.includes(tipoMsg);
 
   const [dataTurno, setDataTurno] = useState("");

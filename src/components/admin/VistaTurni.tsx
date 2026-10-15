@@ -22,8 +22,7 @@ import {
   SpuntaTurno,
   Turno,
 } from "@/lib/donato";
-import { msgPromemoriaCon, msgPromemoriaSenza, msgTurno, NOME_PROGETTO, oggettoProf } from "@/lib/messaggi";
-import { Impostazioni, salvaImpostazioni, useImpostazioni } from "@/lib/impostazioni";
+import { msgPromemoria, msgTurno, NOME_PROGETTO, oggettoProf } from "@/lib/messaggi";
 import { Azioni } from "./tipi";
 import { FormTogli } from "./SchedaPersona";
 import { Bottone, DocumentiUlss, EcgBadge, Istruzioni, LinkGmail, LinkWhatsApp, Modale, TipoBadge, Vuoto } from "./ui";
@@ -224,12 +223,12 @@ function AvvisoProf({ t, profs, azioni }: { t: Turno; profs: Professore[]; azion
 // ---------------------------------------------------------------
 // Una persona nel turno: conferma o togli, una alla volta
 // ---------------------------------------------------------------
-function RigaTurno({ c, azioni, imp }: { c: Candidato; azioni: Azioni; imp: Impostazioni }) {
+function RigaTurno({ c, azioni }: { c: Candidato; azioni: Azioni }) {
   const [togli, setTogli] = useState(false);
   const [inCorso, setInCorso] = useState(false);
   const confermato = c.shift_status === "Confermato";
   // Da confermare: il messaggio con la data e i 2 file ULSS. Confermato: chat vuota.
-  const wa = confermato ? linkWhatsApp(c.cellulare) : linkWhatsApp(c.cellulare, msgTurno(c, c.data_disponibilita, imp));
+  const wa = confermato ? linkWhatsApp(c.cellulare) : linkWhatsApp(c.cellulare, msgTurno(c, c.data_disponibilita));
 
   const cambiaStato = async (stato: "Confermato" | "Contattato") => {
     setInCorso(true);
@@ -299,9 +298,7 @@ function CardTurno({
   spunta: SpuntaTurno;
   setSpunta: (s: SpuntaTurno) => void;
 }) {
-  const imp = useImpostazioni();
   const [foglio, setFoglio] = useState(false);
-  const [conAccompagnatore, setConAccompagnatore] = useState(true);
   const posti = CONFIG_TURNI.postiPerTurno;
   const tuttoConfermato = t.daConfermare.length === 0;
   const giorni = giorniDaOggi(t.data);
@@ -331,7 +328,7 @@ function CardTurno({
 
       <ul className="divide-y divide-slate-100">
         {t.persone.map((c) => (
-          <RigaTurno key={c.id} c={c} azioni={azioni} imp={imp} />
+          <RigaTurno key={c.id} c={c} azioni={azioni} />
         ))}
       </ul>
 
@@ -374,19 +371,9 @@ function CardTurno({
         </Passo>
 
         <Passo n={4} titolo="Promemoria ai ragazzi (il giorno prima)" fatto={false} spento={t.confermati.length === 0 || giorni > 3}>
-          {t.confermati.length > 0 && (
-            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
-              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" checked={conAccompagnatore} onChange={() => setConAccompagnatore(true)} className="accent-red-600" /> Con accompagnatore
-              </label>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" checked={!conAccompagnatore} onChange={() => setConAccompagnatore(false)} className="accent-red-600" /> Senza accompagnatore
-              </label>
-            </div>
-          )}
           <div className="flex flex-wrap gap-2">
             {t.confermati.map((c) => (
-              <LinkWhatsApp key={c.id} href={linkWhatsApp(c.cellulare, conAccompagnatore ? msgPromemoriaCon(imp) : msgPromemoriaSenza(imp))}>
+              <LinkWhatsApp key={c.id} href={linkWhatsApp(c.cellulare, msgPromemoria())}>
                 {maiuscolaIniziale(c.nome) || "Promemoria"}
               </LinkWhatsApp>
             ))}
@@ -396,52 +383,6 @@ function CardTurno({
       </div>
 
       {foglio && <FoglioTrasfusionale t={t} onClose={() => setFoglio(false)} onInviata={() => setSpunta({ ...spunta, lista: true })} />}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------
-// Nome e cellulare dell'accompagnatore per i messaggi (solo su questo dispositivo)
-// ---------------------------------------------------------------
-function Accompagnatore() {
-  const imp = useImpostazioni();
-  const [modifica, setModifica] = useState<Impostazioni | null>(null);
-  if (!modifica) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-bold text-slate-700">🧑‍🤝‍🧑 Accompagnatore nei messaggi:</span>
-        <span className="text-slate-600">
-          {imp.accompagnatore ? `${imp.accompagnatore}${imp.telAccompagnatore ? ` (${imp.telAccompagnatore})` : ""}` : <i>non impostato (il messaggio dirà &quot;uno di noi&quot;)</i>} · ore{" "}
-          {imp.orario}
-        </span>
-        <button onClick={() => setModifica(imp)} className="ml-auto text-xs font-bold text-red-600 underline">
-          Cambia
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="bg-white border-2 border-red-300 rounded-2xl p-4 space-y-3 text-sm">
-      <p className="font-bold text-slate-700">🧑‍🤝‍🧑 Accompagnatore e orario usati nei messaggi WhatsApp</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <input value={modifica.accompagnatore} onChange={(e) => setModifica({ ...modifica, accompagnatore: e.target.value })} placeholder="Nome (es. Lorena)" className="border border-slate-200 rounded-lg px-3 py-2" />
-        <input value={modifica.telAccompagnatore} onChange={(e) => setModifica({ ...modifica, telAccompagnatore: e.target.value })} placeholder="Cellulare" className="border border-slate-200 rounded-lg px-3 py-2" />
-        <input value={modifica.orario} onChange={(e) => setModifica({ ...modifica, orario: e.target.value })} placeholder="Orario (es. 8:45)" className="border border-slate-200 rounded-lg px-3 py-2" />
-      </div>
-      <p className="text-[11px] text-slate-500">Restano salvati solo su questo dispositivo (non vanno nel database né su GitHub).</p>
-      <div className="flex gap-2">
-        <Bottone
-          tipo="primario"
-          onClick={() => {
-            salvaImpostazioni({ ...modifica, orario: modifica.orario.trim() || "8:45" });
-            setModifica(null);
-            toast.success("Salvato");
-          }}
-        >
-          Salva
-        </Bottone>
-        <Bottone onClick={() => setModifica(null)}>Annulla</Bottone>
-      </div>
     </div>
   );
 }
@@ -491,8 +432,6 @@ export default function VistaTurni({
           Le spunte &quot;Inviata&quot; e &quot;Prof avvisati&quot; restano salvate su questo dispositivo.
         </p>
       </Istruzioni>
-
-      <Accompagnatore />
 
       {senzaData.map((t) => (
         <div key="senza-data" className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-sm text-orange-900">

@@ -16,6 +16,8 @@ export const CONFIG_TURNI = {
   numeroDateProposte: 6,
   /** Dove si fa la visita (compare nei messaggi e nella lista) */
   luogo: "Centro Trasfusionale dell'Ospedale di Feltre",
+  /** Orario dell'appuntamento (i ragazzi vanno da soli) */
+  orario: "8:45",
 };
 
 /** Giorni di stop dopo l'ultima donazione / visita */

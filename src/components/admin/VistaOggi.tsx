@@ -111,7 +111,7 @@ export function calcolaCompiti(
         chiave: `promemoria-${t.data}`,
         icona: "🔔",
         titolo: `${g === 0 ? "Oggi" : "Domani"} c'è il turno: manda il promemoria`,
-        testo: "Nel turno, al passo 4, scegli con o senza accompagnatore e tocca il pulsante WhatsApp di ogni ragazzo.",
+        testo: "Nel turno, al passo 4, c'è il messaggio già pronto per ogni ragazzo (vanno da soli: spiega come arrivare).",
         bottone: "Apri il turno",
         vista: "turni",
         urgente: true,

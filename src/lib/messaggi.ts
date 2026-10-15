@@ -1,11 +1,9 @@
 // Testi dei messaggi che il gruppo usa davvero (dai documenti "Messaggio interessati al progetto",
 // "Messaggio reminder" e "Lettera indecisi"). Si aprono già scritti in WhatsApp/Gmail:
 // si possono sempre modificare prima di premere Invia.
-// Nome e cellulare dell'accompagnatore NON sono qui (il codice è pubblico): si impostano
-// nell'app, pagina Turni → "Accompagnatore", e restano sul dispositivo.
+// I ragazzi vanno sempre da soli (senza accompagnatore): i testi spiegano come arrivare.
 import { Candidato, Professore } from "@/types/admin";
 import { CONFIG_TURNI, fmtData, isGiaDonatore, maiuscolaIniziale, sessoBreve, Turno } from "@/lib/donato";
-import { Impostazioni } from "@/lib/impostazioni";
 
 export const FIRMA = "Fidas Feltre – Gruppo Giovani Donatori";
 export const NOME_PROGETTO = "Progetto Scuole – Giovani Donatori Feltre";
@@ -22,12 +20,11 @@ export function urlDocumento(file: string): string {
 }
 
 // ---------- Tipi di messaggio ----------
-export type TipoMessaggio = "turno" | "promemoria_con" | "promemoria_senza" | "indecisi" | "vuoto";
+export type TipoMessaggio = "turno" | "promemoria" | "indecisi" | "vuoto";
 
 export const ETICHETTA_MESSAGGIO: Record<TipoMessaggio, string> = {
   turno: "Messaggio del turno (data + 2 file ULSS)",
-  promemoria_con: "Promemoria il giorno prima – con accompagnatore",
-  promemoria_senza: "Promemoria il giorno prima – senza accompagnatore",
+  promemoria: "Promemoria il giorno prima",
   indecisi: "Mail per chi ci sta pensando (solo email)",
   vuoto: "Chat vuota",
 };
@@ -38,14 +35,13 @@ export const SOLO_EMAIL: TipoMessaggio[] = ["indecisi"];
 const giorno = (data: string | null) => (data ? fmtData(data, "giorno") : "il giorno della visita");
 
 /** "Messaggio interessati al progetto": si manda quando il ragazzo è stato messo in un turno */
-export function msgTurno(c: Candidato, data: string | null, imp: Impostazioni): string {
-  const chi = imp.accompagnatore.trim() ? `${imp.accompagnatore.trim()} sarà lì ad aspettarti` : "uno di noi sarà lì ad aspettarti";
+export function msgTurno(c: Candidato, data: string | null): string {
   const allegati = DOCUMENTI_ULSS.map((d) => `📎 ${d.titolo}: ${urlDocumento(d.file)}`).join("\n");
   return `Ciao!
 
 Sono dei Giovani Donatori di Feltre! Ti ringrazio per la tua disponibilità a voler diventare un donatore di sangue! 🩸
 
-Ti scrivo per darti alcuni dettagli sulla tua visita di idoneità, fissata per ${giorno(data)}. Ti dovrai presentare alle ${imp.orario} al bar dell'ospedale, dove ${chi} e ti accompagnerà durante la visita. Quando avrai finito, potrai andartene e la tua assenza sarà giustificata (ricordati di portare a scuola il *certificato medico* che potrai richiedere direttamente in trasfusionale).
+Ti scrivo per darti alcuni dettagli sulla tua visita di idoneità, fissata per ${giorno(data)}. Ti dovrai presentare alle ${CONFIG_TURNI.orario} al Centro Trasfusionale: entra dal vecchio ingresso dell'ospedale di Feltre e segui il corridoio fino a quando trovi il cartello "centro prelievi donatori di sangue". Quando avrai finito, potrai andartene e la tua assenza sarà giustificata (ricordati di portare a scuola il *certificato medico* che potrai richiedere direttamente in trasfusionale).
 
 Se hai fatto un ELETTROCARDIOGRAMMA negli ultimi due anni, portalo con te! Se non l'hai fatto ma pratichi uno sport a livello agonistico, fallo presente alla dottoressa durante il colloquio.
 
@@ -55,7 +51,7 @@ Se hai meno di 50 kg di peso corporeo o sei affetto da asma bronchiale, purtropp
 
 Inoltre, se lo desideri, hai l'occasione di essere pre-inserito per la donazione di midollo osseo! (a volte è più necessario di una trasfusione!) La prima volta che donerai il sangue, ti sarà prelevata una piccola provetta in più da analizzare e inserirti nel registro mondiale!! Se sei interessato, scrivimi.
 
-Ti aspetto ${giorno(data)} alle ${imp.orario}! Fammi sapere al più presto se ci sarai, altrimenti ci organizziamo per un'altra data.
+L'appuntamento è ${giorno(data)} alle ${CONFIG_TURNI.orario}! Fammi sapere al più presto se ci sarai, altrimenti ci organizziamo per un'altra data.
 
 Se hai domande, non esitare a contattarmi!
 
@@ -68,28 +64,15 @@ const INIZIO_PROMEMORIA = `Ciao!
 
 Solo un veloce promemoria per domani: non dimenticare la TESSERA SANITARIA e la CARTA D'IDENTITÀ! Ecco un piccolo riassunto delle regole pre-donazione: non assumere zuccheri, latticini o cibi grassi a colazione, meglio optare per qualcosa di leggero, come due fette biscottate (senza nulla, avrete modo di rifarvi dopo!). Se hai L'ELETTROCARDIOGRAMMA, portalo con te!`;
 
-/** "Messaggio reminder" – con accompagnatore */
-export function msgPromemoriaCon(imp: Impostazioni): string {
-  const nome = imp.accompagnatore.trim() || "Uno di noi";
-  const tel = imp.telAccompagnatore.trim() ? ` Se hai bisogno, ecco il suo numero: ${imp.telAccompagnatore.trim()}.` : "";
+/** "Messaggio reminder": i ragazzi vanno da soli al Centro Trasfusionale */
+export function msgPromemoria(): string {
   return `${INIZIO_PROMEMORIA}
 
 Ah, e non dimenticare di richiedere al Trasfusionale il *certificato medico*, con quello sarai segnato fuori classe a scuola, almeno per le ore della visita, e vedi tu se ricordare che sei fuori classe anche ai tuoi amici!
 
-${nome} sarà lì ad aspettarti al bar dell'ospedale alle ${imp.orario}.${tel}
+Al Centro Trasfusionale sanno che arrivi: per qualsiasi domanda o dubbio potrai contare su di loro!!💪🏻
 
-Ciao e ci vediamo domani!👋🏻`;
-}
-
-/** "Messaggio reminder" – senza accompagnatore */
-export function msgPromemoriaSenza(imp: Impostazioni): string {
-  return `${INIZIO_PROMEMORIA}
-
-Ah, e non dimenticare che sarai segnato fuori classe a scuola, almeno per le ore della visita, quindi vedi tu se ricordarlo anche ai tuoi amici!
-
-Piccola variazione di programma: il nostro accompagnatore ha avuto un contrattempo e non potrà venire. Ma niente paura! Abbiamo contattato il centro trasfusionale, per qualsiasi domanda o dubbio potrai contare su di loro!!💪🏻
-
-Per raggiungere il Centro Trasfusionale, entrate dal vecchio ingresso dell'ospedale di Feltre e seguite il corridoio fino a quando trovate il cartello "centro prelievi donatori di sangue". L'appuntamento è sempre alle ${imp.orario}.
+Per raggiungere il Centro Trasfusionale, entrate dal vecchio ingresso dell'ospedale di Feltre e seguite il corridoio fino a quando trovate il cartello "centro prelievi donatori di sangue". L'appuntamento è sempre alle ${CONFIG_TURNI.orario}.
 
 Ciao e ci vediamo domani!👋🏻`;
 }
@@ -122,14 +105,12 @@ Grazie mille!
 ${FIRMA}`;
 }
 
-export function testoMessaggio(tipo: TipoMessaggio, c: Candidato, imp: Impostazioni): string {
+export function testoMessaggio(tipo: TipoMessaggio, c: Candidato): string {
   switch (tipo) {
     case "turno":
-      return msgTurno(c, c.data_disponibilita, imp);
-    case "promemoria_con":
-      return msgPromemoriaCon(imp);
-    case "promemoria_senza":
-      return msgPromemoriaSenza(imp);
+      return msgTurno(c, c.data_disponibilita);
+    case "promemoria":
+      return msgPromemoria();
     case "indecisi":
       return msgIndecisi(c.scadenza_risposta || null);
     default:

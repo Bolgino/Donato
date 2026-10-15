@@ -60,8 +60,8 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
             coinvolte. Poi spunta &quot;Inviata&quot; e &quot;Prof avvisati&quot;.
           </li>
           <li>
-            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la donazione: passo 4 del turno, scegli <b>con</b> o <b>senza accompagnatore</b> e
-            tocca il pulsante WhatsApp di ognuno.
+            <b>Il giorno prima</b> mandi il promemoria ai ragazzi che il giorno dopo fanno la donazione: passo 4 del turno, tocca il pulsante WhatsApp di ognuno. I ragazzi
+            vanno <b>sempre da soli</b>, senza accompagnatore: il messaggio spiega come arrivare al Centro Trasfusionale.
           </li>
         </ol>
         <p className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-900">
@@ -88,18 +88,17 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
       <Blocco titolo="I messaggi già pronti">
         <ul className="list-disc ml-5 space-y-1">
           <li>
-            <b>Messaggio del turno</b> (WhatsApp, quando metti un ragazzo in turno): data, orario, punto d&apos;incontro, cosa portare, i link ai 2 file ULSS. Chiede al
+            <b>Messaggio del turno</b> (WhatsApp, quando metti un ragazzo in turno): data, orario, come arrivare, cosa portare, i link ai 2 file ULSS. Chiede al
             ragazzo di confermare.
           </li>
           <li>
-            <b>Promemoria del giorno prima</b> (WhatsApp): con accompagnatore (nome e cellulare) oppure senza accompagnatore (come arrivare al Centro Trasfusionale).
+            <b>Promemoria del giorno prima</b> (WhatsApp): cosa portare, cosa mangiare a colazione e come arrivare al Centro Trasfusionale (i ragazzi vanno da soli).
           </li>
           <li>
             <b>Lettera per chi ci sta pensando</b> (solo mail).
           </li>
           <li>
-            Il nome e il cellulare dell&apos;<b>accompagnatore</b> e l&apos;orario si impostano in <Link v="turni">Turni</Link>, riquadro &quot;Accompagnatore&quot;: restano
-            salvati sul dispositivo.
+            I messaggi <b>non contengono nomi né numeri di telefono</b>: se serve, aggiungi tu il tuo nome o il tuo numero in WhatsApp prima di inviare.
           </li>
           <li>
             Per rispondere ai dubbi dei ragazzi usa <Link v="domande">Domande dei ragazzi</Link>: risposte pronte da copiare.
