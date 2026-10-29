@@ -106,6 +106,19 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
         </ul>
       </Blocco>
 
+      <Blocco titolo="Nuovi admin e password">
+        <ul className="list-disc ml-5 space-y-1">
+          <li>
+            In <Link v="admin">Admin</Link> scrivi l&apos;email della persona e tocca <b>✉️ Manda invito</b>. Le arriva una mail: apre il link, sceglie la sua password e da
+            lì entra con email e password.
+          </li>
+          <li>
+            Password dimenticata o link scaduto? Nella pagina di accesso scrivi l&apos;email e tocca <b>Password dimenticata?</b>: arriva una mail per sceglierne una nuova.
+          </li>
+          <li>Quando un volontario smette, in Admin tocca <b>Togli accesso</b>.</li>
+        </ul>
+      </Blocco>
+
       <Blocco titolo="Le regole che l'app controlla da sola">
         <ul className="list-disc ml-5 space-y-1">
           <li>
@@ -168,6 +181,19 @@ export default function VistaGuida({ vaiA }: { vaiA: (v: Vista) => void }) {
         </Domanda>
         <Domanda d="Le spunte 'Inviata' e 'Prof avvisati' non le vedo su un altro telefono">
           Sono salvate solo sul dispositivo dove le hai messe (come la spunta &quot;Fatto&quot; dei prof a inizio anno). Le conferme che segni ai ragazzi invece sono salvate per tutti.
+        </Domanda>
+        <Domanda d="L'invito non arriva, o il link porta a «localhost»">
+          Sono impostazioni di Supabase, da sistemare una volta sola (le trova chi gestisce il progetto Supabase, passo per passo nel README del progetto):
+          <ul className="list-disc ml-5 mt-1 space-y-1">
+            <li>
+              <b>Link a localhost</b>: in Supabase → Authentication → URL Configuration il &quot;Site URL&quot; deve essere l&apos;indirizzo vero del sito, e tra i
+              &quot;Redirect URLs&quot; deve esserci la pagina <code>/admin/imposta-password</code>.
+            </li>
+            <li>
+              <b>Mail che non arrivano</b> (o errore &quot;Email address not authorized&quot;): il servizio email gratuito di Supabase scrive solo ai membri del team
+              Supabase e al massimo 2 mail all&apos;ora. Bisogna collegare una casella email vera (SMTP), per esempio il Gmail del gruppo.
+            </li>
+          </ul>
         </Domanda>
         <Domanda d="Come installo l'app sul telefono?">
           Su Android/Chrome usa il pulsante <b>Installa App</b> nel menu. Su iPhone: Safari → Condividi → &quot;Aggiungi alla schermata Home&quot;.

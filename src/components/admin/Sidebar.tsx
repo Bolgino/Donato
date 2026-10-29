@@ -21,6 +21,7 @@ export const VOCI_MENU: { id: Vista; nome: string; icona: string; descrizione: s
   { id: "archivio", nome: "Archivio", icona: "🗂", descrizione: "Tutte le risposte ed export Excel", gruppo: "strumenti" },
   { id: "statistiche", nome: "Statistiche", icona: "📊", descrizione: "Accompagnati per anno e per scuola, risposte", gruppo: "strumenti" },
   { id: "domande", nome: "Domande dei ragazzi", icona: "🙋", descrizione: "Risposte pronte alle domande più frequenti", gruppo: "strumenti" },
+  { id: "admin", nome: "Admin", icona: "👥", descrizione: "Chi può entrare: invita nuovi admin via email", gruppo: "strumenti" },
   { id: "guida", nome: "Guida", icona: "❓", descrizione: "Come funziona, passo per passo", gruppo: "strumenti" },
 ];
 

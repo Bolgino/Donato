@@ -1,10 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import toast, { Toaster } from "react-hot-toast";
 import { SCUOLE } from "@/lib/scuole";
+import { vaiAImpostaPasswordSeServe } from "@/lib/auth";
 
 export default function Home() {
+  // Se Supabase manda qui il link di invito di un admin (Site URL), lo porto a scegliere la password
+  useEffect(() => {
+    vaiAImpostaPasswordSeServe();
+  }, []);
+
   const [sezione, setSezione] = useState<number>(1);
   const [tipoAdesione, setTipoAdesione] = useState("");
   const [inviato, setInviato] = useState(false);
