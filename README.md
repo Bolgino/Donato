@@ -42,6 +42,7 @@ I messaggi **non contengono nomi né numeri di telefono**: se serve, li aggiunge
 - **🤔 Ci pensano** – chi ha risposto "Voglio pensarci". Circa un mese dopo **mail** (non WhatsApp) con la lettera già scritta; la scadenza per rispondere si salva da sola. Poi *Vuole partecipare* (va in Da contattare) o *Non interessato* (va in archivio).
 - **👩‍🏫 Rubrica prof** – i referenti delle scuole, con il riquadro 📣 di inizio anno per chiedere se la scuola partecipa. Scrivi il nome della scuola **uguale a quello del modulo** (te lo suggerisce): così l'avviso viene abbinato da solo.
 - **🙋 Domande dei ragazzi** – le domande frequenti (tatuaggi, peso, asma, farmaci, midollo…) con la risposta da copiare in WhatsApp, e i link ai 2 documenti ULSS.
+- **👥 Admin** – chi può entrare: invito via email (la persona sceglie da sola la password), elenco degli admin, togli accesso.
 - **🗂 Archivio** – tutte le risposte (anche i "No"), export Excel per anno scolastico, eliminazione.
 - **📊 Statistiche** – **accompagnati per anno scolastico e per scuola** (come il foglio "Rendimento annuale" dell'Excel, calcolati sulle persone confermate: già andate + in programma, con la % sulle risposte "sì"), più le risposte per scuola.
 
@@ -73,7 +74,7 @@ Next.js 16 (App Router) + React 19 + Tailwind 4, database e login su Supabase, d
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del progetto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chiave pubblica (modulo e area admin) |
-| `SUPABASE_SERVICE_ROLE_KEY` | solo per `/keep-alive`, il cron giornaliero di `vercel.json` che evita la pausa del progetto Supabase gratuito |
+| `SUPABASE_SERVICE_ROLE_KEY` | solo sul server: per `/keep-alive` (il cron giornaliero di `vercel.json` che evita la pausa del progetto Supabase gratuito) e per invitare/togliere gli admin |
 
 ### Avvio in locale
 
@@ -108,6 +109,37 @@ L'area admin usa le stesse colonne e gli stessi valori di sempre (nessuna migraz
 | `Da Ricontattare` (+ `data_ricontatto`, `note_ricontatto`) | Da contattare → filtro "Da ricontattare" |
 | `Contattato` (+ `data_disponibilita`) | Turni, il ragazzo deve ancora confermare |
 | `Confermato` (+ `data_disponibilita`) | Turni, il ragazzo ha confermato |
+
+### Admin: inviti via email e password
+
+Nell'app, pagina **👥 Admin**: si scrive l'email, parte un invito; chi lo riceve apre il link, arriva su `/admin/imposta-password`, sceglie la password e da lì entra con email e password. Nella pagina di accesso c'è anche **Password dimenticata?** (stessa pagina per la nuova password). L'invito passa dall'API `src/app/api/admin/utenti` con la `SUPABASE_SERVICE_ROLE_KEY` (solo sul server) e solo per chi è già collegato.
+
+**Da configurare una volta su Supabase** (altrimenti i link portano a `localhost` o le mail non arrivano):
+
+1. **Authentication → URL Configuration**
+   - **Site URL**: l'indirizzo vero del sito, es. `https://<il-vostro-dominio>.vercel.app` (non `http://localhost:3000`).
+   - **Redirect URLs**: aggiungere `https://<il-vostro-dominio>.vercel.app/admin/imposta-password` e, per provare le anteprime delle Pull Request, `https://*-bolginos-projects.vercel.app/**`.
+2. **Authentication → Emails → SMTP Settings**: attivare un SMTP vero. Il servizio email incluso in Supabase scrive **solo agli indirizzi del team Supabase** e al massimo **2 mail all'ora**. Esempio con il Gmail del gruppo (serve la verifica in due passaggi e una "password per le app" di Google):
+   - Host `smtp.gmail.com`, porta `465`, utente = indirizzo Gmail, password = password per le app
+   - Mittente: lo stesso indirizzo Gmail, nome "Giovani Donatori Feltre"
+   - In alternativa un servizio come Brevo (piano gratuito).
+3. **Authentication → Sign In / Providers**: disattivare **Allow new users to sign up**: gli inviti funzionano lo stesso, ma nessuno può crearsi un account da solo.
+4. **Authentication → Emails → Templates** (facoltativo, per avere le mail in italiano):
+   - *Invite user* – oggetto `Invito all'area riservata Donato – Giovani Donatori Feltre`:
+     ```html
+     <h2>Sei stato invitato come admin di Donato</h2>
+     <p>Ciao! Sei stato aggiunto come amministratore dell'area riservata del Progetto Scuole – Giovani Donatori Feltre.</p>
+     <p><a href="{{ .ConfirmationURL }}">Clicca qui per scegliere la tua password</a></p>
+     <p>Il link vale una sola volta e scade dopo poco. Se non funziona, chiedi un nuovo invito.</p>
+     ```
+   - *Reset password* – oggetto `Nuova password per Donato`:
+     ```html
+     <h2>Scegli una nuova password</h2>
+     <p><a href="{{ .ConfirmationURL }}">Clicca qui per scegliere una nuova password</a></p>
+     <p>Se non l'hai chiesto tu, ignora questa mail.</p>
+     ```
+
+Su Vercel la variabile `SUPABASE_SERVICE_ROLE_KEY` deve esserci anche per l'ambiente *Preview* se si vogliono provare gli inviti dall'anteprima.
 
 ### Sicurezza (da controllare su Supabase)
 

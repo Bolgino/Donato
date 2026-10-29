@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
+import { PAGINA_PASSWORD, vaiAImpostaPasswordSeServe } from "@/lib/auth";
 import { Candidato, Professore } from "@/types/admin";
 import { annoScolasticoDi, calcolaAnnoScolastico, faseDi, leggiPreferenza, leggiSpunte, oggiISO, raggruppaTurni, scriviPreferenza, scriviSpunte, SpuntaTurno } from "@/lib/donato";
 import Sidebar, { VOCI_MENU } from "@/components/admin/Sidebar";
@@ -19,6 +20,7 @@ import VistaRubrica from "@/components/admin/VistaRubrica";
 import VistaStatistiche from "@/components/admin/VistaStatistiche";
 import VistaGuida from "@/components/admin/VistaGuida";
 import VistaDomande from "@/components/admin/VistaDomande";
+import VistaAdmin from "@/components/admin/VistaAdmin";
 import { Azioni, Vista } from "@/components/admin/tipi";
 
 const CON_RICERCA: Vista[] = ["contattare", "turni", "pensano", "archivio", "rubrica", "domande"];
@@ -70,13 +72,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     setSpunte(leggiSpunte());
     setProfInvitatiStato(leggiPreferenza("prof-invitati-" + annoScolasticoDi(oggiISO()), false));
+    // Arrivati qui da un link di invito o di "Password dimenticata?": prima si sceglie la password
+    if (vaiAImpostaPasswordSeServe()) return;
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchData(true);
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    } = supabase.auth.onAuthStateChange((evento, session) => {
+      if (evento === "PASSWORD_RECOVERY") window.location.replace(PAGINA_PASSWORD);
+      setSession(session);
+    });
     return () => subscription.unsubscribe();
   }, [fetchData]);
 
@@ -92,6 +99,14 @@ export default function AdminDashboard() {
       setPassword("");
       fetchData(true);
     }
+  };
+
+  const passwordDimenticata = async () => {
+    if (!email.trim()) return toast.error("Scrivi prima la tua email qui sopra.");
+    const t = toast.loading("Invio della mail…");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin + PAGINA_PASSWORD });
+    if (error) toast.error("Non sono riuscito a mandare la mail: " + error.message, { id: t });
+    else toast.success("Se l'email è di un admin, ti arriva un link per scegliere una nuova password.", { id: t, duration: 8000 });
   };
 
   const handleLogout = async () => {
@@ -239,6 +254,9 @@ export default function AdminDashboard() {
           <button disabled={isLoggingIn} type="submit" className="w-full bg-red-600 text-white p-3 rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50">
             Accedi
           </button>
+          <button type="button" onClick={passwordDimenticata} className="mt-4 text-xs font-bold text-slate-500 hover:text-red-600 underline">
+            Password dimenticata?
+          </button>
         </form>
       </div>
     );
@@ -317,6 +335,7 @@ export default function AdminDashboard() {
               {vista === "archivio" && <VistaArchivio lista={datiAnno} annoAttivo={annoAttivo} azioni={azioni} ricerca={ricerca} />}
               {vista === "statistiche" && <VistaStatistiche dati={datiAnno} candidature={candidature} annoAttivo={annoAttivo} />}
               {vista === "domande" && <VistaDomande ricerca={ricerca} />}
+              {vista === "admin" && <VistaAdmin />}
               {vista === "guida" && <VistaGuida vaiA={azioni.vaiA} />}
             </>
           )}
