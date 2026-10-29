@@ -27,6 +27,20 @@ async function verifica(req: Request): Promise<Verifica> {
   return { ok: true, sb, utente: data.user };
 }
 
+/**
+ * Admin che non devono comparire nell'elenco né poter essere tolti (es. chi sviluppa l'app).
+ * Si scrivono su Vercel nella variabile ADMIN_NASCOSTI (email separate da virgola), non nel codice:
+ * il repository è pubblico.
+ */
+function adminNascosti(): Set<string> {
+  return new Set(
+    (process.env.ADMIN_NASCOSTI || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 /** Traduce gli errori di Supabase in istruzioni comprensibili */
 function spiega(messaggio: string): { testo: string; status: number } {
   const m = messaggio.toLowerCase();
@@ -47,7 +61,9 @@ export async function GET(req: Request) {
   if (!v.ok) return v.risposta;
   const { data, error } = await v.sb.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (error) return errore(spiega(error.message).testo, 500);
+  const nascosti = adminNascosti();
   const utenti = data.users
+    .filter((u) => !nascosti.has((u.email || "").toLowerCase()))
     .map((u) => ({
       id: u.id,
       email: u.email ?? "",
@@ -82,6 +98,9 @@ export async function DELETE(req: Request) {
   const corpo = (await req.json().catch(() => ({}))) as { id?: string };
   if (!corpo.id) return errore("Manca l'utente da togliere.", 400);
   if (corpo.id === v.utente.id) return errore("Non puoi togliere l'accesso a te stesso.", 400);
+  const daTogliere = await v.sb.auth.admin.getUserById(corpo.id);
+  if (daTogliere.error || !daTogliere.data.user || adminNascosti().has((daTogliere.data.user.email || "").toLowerCase()))
+    return errore("Utente non trovato.", 404);
   const { error } = await v.sb.auth.admin.deleteUser(corpo.id);
   if (error) return errore(spiega(error.message).testo, 500);
   return NextResponse.json({ ok: true });

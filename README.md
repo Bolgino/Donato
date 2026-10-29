@@ -75,6 +75,7 @@ Next.js 16 (App Router) + React 19 + Tailwind 4, database e login su Supabase, d
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del progetto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chiave pubblica (modulo e area admin) |
 | `SUPABASE_SERVICE_ROLE_KEY` | solo sul server: per `/keep-alive` (il cron giornaliero di `vercel.json` che evita la pausa del progetto Supabase gratuito) e per invitare/togliere gli admin |
+| `ADMIN_NASCOSTI` | facoltativa: email (separate da virgola) degli admin da non mostrare nella pagina Admin e che nessuno può togliere, es. chi sviluppa l'app. Va su Vercel e non nel codice, perché il repository è pubblico |
 
 ### Avvio in locale
 
@@ -112,7 +113,7 @@ L'area admin usa le stesse colonne e gli stessi valori di sempre (nessuna migraz
 
 ### Admin: inviti via email e password
 
-Nell'app, pagina **👥 Admin**: si scrive l'email, parte un invito; chi lo riceve apre il link, arriva su `/admin/imposta-password`, sceglie la password e da lì entra con email e password. Nella pagina di accesso c'è anche **Password dimenticata?** (stessa pagina per la nuova password). L'invito passa dall'API `src/app/api/admin/utenti` con la `SUPABASE_SERVICE_ROLE_KEY` (solo sul server) e solo per chi è già collegato.
+Nell'app, pagina **👥 Admin**: si scrive l'email, parte un invito; chi lo riceve apre il link, arriva su `/admin/imposta-password`, sceglie la password e da lì entra con email e password. Nella pagina di accesso c'è anche **Password dimenticata?** (stessa pagina per la nuova password). L'invito passa dall'API `src/app/api/admin/utenti` con la `SUPABASE_SERVICE_ROLE_KEY` (solo sul server) e solo per chi è già collegato. Gli account scritti nella variabile `ADMIN_NASCOSTI` non compaiono nell'elenco e non si possono togliere.
 
 **Da configurare una volta su Supabase** (altrimenti i link portano a `localhost` o le mail non arrivano):
 
