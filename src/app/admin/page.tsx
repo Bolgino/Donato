@@ -210,9 +210,31 @@ export default function AdminDashboard() {
         <form onSubmit={handleLogin} className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl text-center w-full max-w-sm">
           <img src="/favicon.ico" alt="Donato" className="w-16 h-16 mx-auto mb-6 object-contain" />
           <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Area Riservata</h2>
-          <div className="space-y-4 mb-8">
-            <input type="email" required placeholder="Email Amministratore" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border-b-2 border-slate-200 focus:border-red-600 outline-none pb-2 text-center text-sm font-bold bg-transparent" />
-            <input type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border-b-2 border-slate-200 focus:border-red-600 outline-none pb-2 text-center text-xl tracking-widest bg-transparent" />
+          <div className="space-y-4 mb-8 text-left">
+            <label className="block">
+              <span className="block text-xs font-bold text-slate-600 mb-1">Email</span>
+              <input
+                type="email"
+                required
+                autoComplete="username"
+                placeholder="nome@esempio.it"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-bold text-slate-600 mb-1">Password</span>
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              />
+            </label>
           </div>
           <button disabled={isLoggingIn} type="submit" className="w-full bg-red-600 text-white p-3 rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50">
             Accedi
